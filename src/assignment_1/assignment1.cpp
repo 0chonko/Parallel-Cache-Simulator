@@ -20,6 +20,93 @@ using namespace std;
 using namespace sc_core; // This pollutes namespace, better: only import what you need.
 
 static const size_t MEM_SIZE = 2500;
+static const size_t CACHE_SIZE = 32000;
+static const size_t LINE_SIZE = 4; //* sizeof(uint64_t);
+static const size_t ADDR_SIZE = 32;
+// static const size_t LINE_NUM = 1000;
+
+// TODO: 8-way associative - 8 cachelines per operation - 32000 / 32 = 1000 cache line => 1000 / 8 = 125 sets 
+// TODO: least-recently-used write-back replacement strategy together with an allocate-on-write policy.
+// whole cache line of 32 bytes can be transferred with a single read or write
+
+ 
+SC_MODULE(Cache) {
+    public:
+
+    enum Function { FUNC_READ, FUNC_WRITE };
+    enum RetCode { RET_READ_DONE, RET_WRITE_DONE };
+
+    // signal in
+    sc_in<bool> Port_CLK;
+    sc_in<Function> Port_Func;
+    sc_in<uint64_t> Port_Addr;
+
+    // signal out
+    sc_out<RetCode> Port_Done;
+
+    // signal inout
+    sc_inout_rv<64> Port_Data;
+
+    SC_CTOR(Cache) {
+        SC_THREAD(execute);
+        sensitive << Port_CLK.pos();
+        dont_initialize();
+
+        m_data = new uint64_t[MEM_SIZE];
+    }
+
+    ~Cache() {
+        delete[] m_data;
+    }
+
+    void dump() {
+        for (size_t i = 0; i < MEM_SIZE; i++) {
+            cout << setw(5) << i << ": " << setw(5) << m_data[i];
+            if (i % 8 == 7) {
+                cout << endl;
+            }
+        }
+    }
+
+    private:
+    uint64_t *m_data;
+    // convert incoming address to set
+    size_t addressModuloOperation(uint64_t address) {
+        return Port_Addr % ((CACHE_SIZE / (sizeof(uint64_t) * 4))  / 8);
+    }
+
+    void execute() {
+        while (true) {
+            wait(Port_Func.value_changed_event());
+
+            Function f = Port_Func.read();
+            uint64_t addr = Port_Addr.read();
+            uint64_t data = 0;
+            if (f == FUNC_WRITE) {
+                cout << sc_time_stamp() << ": CACHE received write" << endl;
+                data = Port_Data.read().to_uint64();
+            } else {
+                cout << sc_time_stamp() << ": CACHE received read" << endl;
+            }
+            cout << sc_time_stamp() << ": CACHE address " << addr << endl;
+
+            // This simulates cache read/write delay of the cache
+            wait(1);
+
+            if (f == FUNC_READ) {
+                Port_Data.write((addr < MEM_SIZE) ? m_data[addr] : 0);
+                Port_Done.write(RET_READ_DONE);
+                wait();
+                Port_Data.write(float_64_bit_wire); // string with 64 "Z"'s
+            } else {
+                if (addr < MEM_SIZE) {
+                    m_data[addr] = data;
+                }
+                Port_Done.write(RET_WRITE_DONE);
+            }
+        }
+    }
+};
 
 SC_MODULE(Memory) {
     public:
@@ -198,6 +285,7 @@ int sc_main(int argc, char *argv[]) {
         // Instantiate Modules
         Memory mem("main_memory");
         CPU cpu("cpu");
+        Cache cache("cache");
 
         // Signals
         sc_buffer<Memory::Function> sigMemFunc;
@@ -210,6 +298,11 @@ int sc_main(int argc, char *argv[]) {
         sc_clock clk;
 
         // Connecting module ports with signals
+        mem.Port_Func(sigMemFunc);
+        mem.Port_Addr(sigMemAddr);
+        mem.Port_Data(sigMemData);
+        mem.Port_Done(sigMemDone);
+
         mem.Port_Func(sigMemFunc);
         mem.Port_Addr(sigMemAddr);
         mem.Port_Data(sigMemData);
@@ -229,6 +322,7 @@ int sc_main(int argc, char *argv[]) {
 
         // Start Simulation
         sc_start();
+        // TODO: Cache actions and cache state transitions should be printed to the console.
 
         // Print statistics after simulation finished
         stats_print();
