@@ -5,7 +5,7 @@
 
 # Location of the SystemC library files
 # CHANGE THIS TO MATCH YOUR INSTALLATION
-SYSTEMC_PATH    = /Users/germanfak/local/systemc
+SYSTEMC_PATH    = /home/germanfak/local/systemc
 
 SYSTEMC_INCLUDE = $(SYSTEMC_PATH)/include
 
@@ -16,9 +16,9 @@ KERNEL = $(shell uname -s)
 # Then pick the right path for the precompiled SystemC Library
 ifeq ($(KERNEL),Darwin)
 	ifeq ($(MACHINE_ARCH), x86_64)
-		SYSTEMC_LIBDIR     = $(SYSTEMC_PATH)/lib-macosx
+		SYSTEMC_LIBDIR     = $(SYSTEMC_PATH)/lib
 	else ifeq ($(MACHINE_ARCH), arm64)
-		SYSTEMC_LIBDIR     = $(SYSTEMC_PATH)/lib-macosxarm
+		SYSTEMC_LIBDIR     = $(SYSTEMC_PATH)/lib
 	endif
 else ifeq ($(MACHINE_ARCH),i686)
     SYSTEMC_LIBDIR     = $(SYSTEMC_PATH)/lib-linux

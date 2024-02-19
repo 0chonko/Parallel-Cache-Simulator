@@ -24,13 +24,15 @@
 #include <cassert>
 #include <cstdint>
 
-#if defined(OS_MACOSX)
+#if defined(__APPLE__)
 #include <machine/endian.h>
 #else
 #include <endian.h>
 #endif
 
 using namespace std;
+
+#if !defined(__APPLE__)
 
 #if defined(__BYTE_ORDER) && (__BYTE_ORDER == __LITTLE_ENDIAN) || (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
 uint64_t ntohll(uint64_t net) {
@@ -44,6 +46,8 @@ uint64_t ntohll(uint64_t net) {
 uint64_t ntohll(uint64_t net) {
     return net;
 }
+#endif
+
 #endif
 
 // Internal structure to keep track of statistics per CPU
