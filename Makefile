@@ -5,7 +5,7 @@
 
 # Location of the SystemC library files
 # CHANGE THIS TO MATCH YOUR INSTALLATION
-SYSTEMC_PATH    = /home/germanfak/local/systemc
+SYSTEMC_PATH    = /Users/germanfak/local/systemc
 
 SYSTEMC_INCLUDE = $(SYSTEMC_PATH)/include
 
