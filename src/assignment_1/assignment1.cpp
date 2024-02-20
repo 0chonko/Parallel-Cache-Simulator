@@ -193,9 +193,17 @@ public:
                 for (size_t k = 0; k < 8; k++)
                 {
                     size_t index = (i * 8 * 8) + (j * 8) + k;
-                    if (index < CACHE_MEM)
+                    if (index < CACHE_SIZE)
                     {
-                        cout << setw(5) << index << ": " << setw(5) << cache[i].lines[j].data[k] << endl;
+                        cout << setw(5) << index << ": " << setw(5) << cache[i].lines[j].data[k];
+                        if (index % 8 == 7)
+                        {
+                            cout << endl;
+                        }
+                    }
+                    else
+                    {
+                        break;
                     }
                 }
             }
@@ -259,7 +267,7 @@ private:
             uint64_t addr = Port_Addr.read();
             uint64_t data = 0;
             uint32_t ret_data = 0;
-            cout << sc_time_stamp() << "your port data received is " << Port_Addr.read() << endl;
+            // cout << sc_time_stamp() << "your port data received is " << Port_Addr.read() << endl;
 
             // Extract the set index and block offset
             uint64_t setIndex = (addr >> BLOCK_OFFSET_BITS) & setIndexMask;
@@ -282,6 +290,7 @@ private:
                         {
                             if (cache[setIndex].agingBits[i] == 0) // empty line
                             {
+                                cout << sc_time_stamp() << "empty line found" << endl;
                                 cache[setIndex].lines[i].data[blockOffset] = data;
                                 cache[setIndex].lines[i].state = 1;
                                 cache[setIndex].lines[i].tag = tag;
@@ -299,6 +308,7 @@ private:
                             // there could be multiple lines having the same tag so you need to check whether
                             if (cache[setIndex].lines[i].tag == tag) // if there's a hit
                             {
+                                cout << sc_time_stamp() << "tag match found" << endl;
                                 tagMatch = true;
                                 cache[setIndex].lines[i].data[blockOffset] = data;
                                 cache[setIndex].lines[i].state = 1;
@@ -309,11 +319,13 @@ private:
                         }
                         if (!tagMatch) // if there's no hit
                         {
+                            cout<<sc_time_stamp()<<"no tag match found"<<endl;
                             // find the oldest line to evict
                             int oldest = find_oldest(setIndex);
                             // evict and perform write-back if necessary
                             if (cache[setIndex].lines[oldest].dirty)
                             {
+                                cout<<sc_time_stamp()<<"evicting for write miss"<<endl;
                                 wait(100); // simulate writing back to memory and allocate-on-write
                             }
                             else
@@ -351,7 +363,9 @@ private:
                         // evict and perform write-back if necessary
                         if (cache[setIndex].lines[oldest].dirty)
                         {
+                            cout << sc_time_stamp() << "evicting for read miss" << endl;
                             wait(100); // simulate writing back to memory and loading the block from memory
+                            cache[setIndex].lines[oldest].dirty = 0; // set as clean
                         }
                         else
                         {
