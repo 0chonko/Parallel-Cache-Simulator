@@ -12,7 +12,7 @@
 
 #include <iostream>
 #include <iomanip>
-#include <systemc>
+#include <systemc.h>
 #include <algorithm>
 
 #include "psa.h"
@@ -288,7 +288,7 @@ private:
                     {
                         for (int i = 0; i < 8; i++)
                         {
-                            if (cache[setIndex].agingBits[i] == 0) // empty line
+                            if (cache[setIndex].j[i] == 0) // empty line
                             {
                                 cout << sc_time_stamp() << "empty line found" << endl;
                                 cache[setIndex].lines[i].data[blockOffset] = data;
