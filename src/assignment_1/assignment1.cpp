@@ -22,11 +22,19 @@ using namespace sc_core; // This pollutes namespace, better: only import what yo
 
 static const size_t MEM_SIZE = 2500;
 static const size_t CACHE_SIZE = 32768;
-static const size_t LINES_COUNT = 1024;
-static const size_t LINE_SIZE = 4; //* sizeof(uint64_t);
+// static const size_t CACHE_SIZE = 65536; // 64kb
+// static const size_t CACHE_SIZE = 131072; // 128kb 
+// static const size_t CACHE_SIZE = 524288; // 512kb
+static const size_t LINES_COUNT = CACHE_SIZE / 32;
+static const size_t LINE_SIZE = 32; //* sizeof(uint64_t);
 static const size_t SET_SIZE = 8;
+<<<<<<< Updated upstream
 static const size_t SET_COUNT = 128;
 // static const size_t LINE_NUM = 1000;
+=======
+static const size_t SET_COUNT = LINES_COUNT / SET_SIZE;
+bool debug = true;
+>>>>>>> Stashed changes
 
 // whole cache line of 32 bytes can be transferred with a single read or write
 
@@ -132,6 +140,7 @@ public:
     struct CacheLine
     {
         uint64_t tag;
+<<<<<<< Updated upstream
         uint32_t data[8]; // 32 byte line
         bool state;
         bool dirty;
@@ -141,6 +150,15 @@ public:
     {
         CacheLine lines[8];   // 8-way
         uint8_t agingBits[8]; // 3-bit aging bits for each line, stored as 8-bit integers
+=======
+        uint32_t data[LINE_SIZE];
+        bool state, dirty;
+    };
+
+    struct CacheSet {
+        CacheLine lines[SET_SIZE];
+        uint8_t agingBits[SET_SIZE];
+>>>>>>> Stashed changes
     };
 
     // signal in
@@ -175,6 +193,7 @@ public:
         for (size_t i = 0; i < MEM_SIZE; i++)
         {
             cout << setw(5) << i << ": " << setw(5) << m_data[i];
+<<<<<<< Updated upstream
             if (i % 8 == 7)
             {
                 cout << endl;
@@ -195,6 +214,18 @@ public:
                     size_t index = (i * 8 * 8) + (j * 8) + k;
                     if (index < CACHE_SIZE)
                     {
+=======
+            if (i % SET_SIZE == 7) cout << endl;
+        }
+    }
+
+    void dump_cache() {
+        for (size_t i = 0; i < SET_COUNT; i++) {
+            for (size_t j = 0; j < SET_SIZE; j++) {
+                for (size_t k = 0; k < SET_SIZE; k++) {
+                    size_t index = (i * SET_SIZE * SET_SIZE) + (j * SET_SIZE) + k;
+                    if (index < SET_SIZE) {
+>>>>>>> Stashed changes
                         cout << setw(5) << index << ": " << setw(5) << cache[i].lines[j].data[k];
                         if (index % 8 == 7)
                         {
@@ -205,6 +236,10 @@ public:
                     {
                         break;
                     }
+<<<<<<< Updated upstream
+=======
+                    if (index % SET_SIZE == 7) cout << endl;
+>>>>>>> Stashed changes
                 }
             }
         }
@@ -214,15 +249,24 @@ private:
     uint64_t *m_data;
     CacheSet *cache;
 
+<<<<<<< Updated upstream
     // Define the number of bits for the set index and block offset
     const int SET_INDEX_BITS = 7;
     const int BLOCK_OFFSET_BITS = 5;
     const int TAG_BITS = 64 - SET_INDEX_BITS - BLOCK_OFFSET_BITS;
     // Calculate the masks for the set index and block offset
+=======
+    const int SET_INDEX_BITS = log2(SET_COUNT);
+    const int BLOCK_OFFSET_BITS = log2(LINE_SIZE);
+    const int TAG_BITS = 64 - SET_INDEX_BITS - BLOCK_OFFSET_BITS;
+
+    // Parse 64-bit address into set index, block offset, and tag
+>>>>>>> Stashed changes
     uint64_t setIndexMask = (1ULL << SET_INDEX_BITS) - 1;
     uint64_t blockOffsetMask = (1ULL << BLOCK_OFFSET_BITS) - 1;
     uint64_t setTagMask = ((1ULL << SET_INDEX_BITS) - 1) << BLOCK_OFFSET_BITS;
 
+<<<<<<< Updated upstream
     uint64_t tagMask = (1ULL << TAG_BITS) - 1;
     // TODO: check for tag
 
@@ -260,21 +304,36 @@ private:
     {
         while (true)
         {
+=======
+    void update_aging_bits(uint64_t setIndex, uint64_t blockOffset) {
+        for (uint64_t i = 0; i < SET_SIZE; i++) {
+            if (i != blockOffset && cache[setIndex].agingBits[i] > 1) cache[setIndex].agingBits[i] -= 1;
+            else cache[setIndex].agingBits[i] = SET_SIZE;
+        }
+    }
+
+    int find_oldest(uint64_t setIndex) { return std::distance(cache[setIndex].agingBits, std::min_element(cache[setIndex].agingBits, cache[setIndex].agingBits + SET_SIZE)); }
+>>>>>>> Stashed changes
 
             wait(Port_Func.value_changed_event());
             // cout << sc_time_stamp() << "data at 10 is: " << cache->lines[0].state << endl;
             Function f = Port_Func.read();
             uint64_t addr = Port_Addr.read();
             uint64_t data = 0;
+<<<<<<< Updated upstream
             uint32_t ret_data = 0;
             // cout << sc_time_stamp() << "your port data received is " << Port_Addr.read() << endl;
 
             // Extract the set index and block offset
+=======
+            uint32_t ret_data = 0; // for return data
+>>>>>>> Stashed changes
             uint64_t setIndex = (addr >> BLOCK_OFFSET_BITS) & setIndexMask;
             uint64_t blockOffset = addr & blockOffsetMask;
             uint64_t tag = addr >> (SET_INDEX_BITS + BLOCK_OFFSET_BITS);
             cout << sc_time_stamp() << "your set and offset are " << setIndex << " " << blockOffset << endl;
 
+<<<<<<< Updated upstream
             if (f == FUNC_WRITE)
             {
                 if (addr < CACHE_SIZE)
@@ -336,9 +395,53 @@ private:
                             cache[setIndex].lines[oldest].state = 1;
                             update_aging_bits(setIndex, oldest);
                         }
+=======
+            if (f == FUNC_WRITE) {  
+                if(debug) cout << sc_time_stamp() << ": MEM received write" << endl;
+                bool tagMatch = false;
+                data = Port_Data.read().to_uint64();
+                for (uint64_t i = 0; i < SET_SIZE; i++) {
+                    if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state == 1) {
+                        if(debug) cout << sc_time_stamp() << ": MEM received write hit" << endl;
+                        stats_writehit(0);
+                        tagMatch = true;
+                        cache[setIndex].lines[i].data[blockOffset] = data;
+                        cache[setIndex].lines[i].tag = tag;
+                        update_aging_bits(setIndex, i);
+                        break;
+                    }
+                }
+                if (!tagMatch) {
+                    if(debug) cout << sc_time_stamp() << ": MEM received write miss" << endl;
+                    stats_writemiss(0);
+                    int oldest = find_oldest(setIndex);
+                    wait(100);
+                    if (cache[setIndex].lines[oldest].dirty) cache[setIndex].lines[oldest].dirty = 0;
+                    if (oldest == 0) oldest = 1;
+                    cache[setIndex].lines[oldest].state = 1;
+                    cache[setIndex].lines[oldest].tag = tag;
+                    cache[setIndex].lines[oldest].data[blockOffset] = data;
+                    cache[setIndex].lines[oldest].dirty = 1;
+                    update_aging_bits(setIndex, oldest);
+                }
+                wait(1);
+            } else {
+                if(debug) cout << sc_time_stamp() << ": MEM received read" << endl;
+                bool tagMatch = false;
+                for (uint64_t i = 0; i < SET_SIZE; i++) {
+                    if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state == 1) {
+                        if(debug) cout << sc_time_stamp() << ": MEM received read hit" << endl;
+                        stats_readhit(0);
+                        tagMatch = true;
+                        ret_data = cache[setIndex].lines[i].data[blockOffset];
+                        cache[setIndex].lines[i].tag = tag;
+                        update_aging_bits(setIndex, i);
+                        break;
+>>>>>>> Stashed changes
                     }
                     wait(1);
                 }
+<<<<<<< Updated upstream
             }
             else
             {
@@ -375,12 +478,38 @@ private:
                         update_aging_bits(setIndex, oldest);
                     }
                     wait(1);
+=======
+                if (!tagMatch) {
+                    if(debug) cout << sc_time_stamp() << ": MEM received read miss" << endl;
+                    stats_readmiss(0);
+                    int oldest = find_oldest(setIndex);
+                    if (cache[setIndex].lines[oldest].dirty)
+                    {   
+                        if(debug) cout << sc_time_stamp() << ": MEM received read miss with dirty, writing back" << endl;
+                        cache[setIndex].lines[oldest].dirty = 0;
+                    }
+                    wait(100);
+                    if (oldest == 0) 
+                    {
+                        if(debug) cout << sc_time_stamp() << ": MEM received read on a empty line" << endl;
+                        oldest = 1;
+                    }
+                    cache[setIndex].lines[oldest].state = 1;
+                    cache[setIndex].lines[oldest].tag = tag;
+                    ret_data = cache[setIndex].lines[oldest].data[blockOffset];
+                    update_aging_bits(setIndex, oldest);
+>>>>>>> Stashed changes
                 }
             }
+<<<<<<< Updated upstream
 
             if (f == FUNC_READ)
             {
                 // read at addr and return ret code
+=======
+            if(debug) cout << sc_time_stamp() << ": MEM address " << addr << endl;
+            if (f == FUNC_READ) {
+>>>>>>> Stashed changes
                 Port_Data.write((addr < CACHE_SIZE) ? ret_data : 0);
                 Port_Done.write(RET_READ_DONE);
                 wait();
@@ -431,7 +560,7 @@ private:
             // To demonstrate the statistic functions, we generate a 50%
             // probability of a 'hit' or 'miss', and call the statistic
             // functions below
-            int j = rand() % 2;
+            // int j = rand() % 2;
 
             switch (tr_data.type)
             {
@@ -466,8 +595,12 @@ private:
 
                 if (f == Memory::FUNC_WRITE)
                 {
+<<<<<<< Updated upstream
                     cout << sc_time_stamp() << ": CPU sends write" << endl;
 
+=======
+                    if(debug) cout << sc_time_stamp() << ": CPU sends write" << endl;
+>>>>>>> Stashed changes
                     // We write the address as the data value.
                     Port_MemData.write(tr_data.addr);
                     wait();
@@ -475,20 +608,25 @@ private:
                 }
                 else
                 {
-                    cout << sc_time_stamp() << ": CPU sends read" << endl;
+                    if(debug) cout << sc_time_stamp() << ": CPU sends read" << endl;
                 }
 
                 wait(Port_MemDone.value_changed_event());
 
                 if (f == Memory::FUNC_READ)
                 {
+<<<<<<< Updated upstream
                     cout << sc_time_stamp()
                          << ": CPU reads: " << Port_MemData.read() << endl;
+=======
+                    if(debug) cout << sc_time_stamp()
+                     << ": CPU reads: " << Port_MemData.read() << endl;
+>>>>>>> Stashed changes
                 }
             }
             else
             {
-                cout << sc_time_stamp() << ": CPU executes NOP" << endl;
+                if(debug) cout << sc_time_stamp() << ": CPU executes NOP" << endl;
             }
             // Advance one cycle in simulated time
             wait();
@@ -513,7 +651,6 @@ int sc_main(int argc, char *argv[])
         // Instantiate Modules
         Memory mem("main_memory");
         CPU cpu("cpu");
-        // Cache cache("cache");
 
         // Signals
         sc_buffer<Memory::Function> sigMemFunc;
