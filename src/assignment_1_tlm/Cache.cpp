@@ -130,32 +130,36 @@ int Cache::cpu_read(uint64_t addr) {
     // int dirty = rand() % 2;
 
     bool tagMatch = false;
-    for (int i = 0; i < 8; i++)
-    {
-        if (cache[setIndex].lines[i].tag == tag) // if there's a hit
-        {
+    for (uint64_t i = 0; i < SET_SIZE; i++) {
+        if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state == 1) {
+            if(debug) cout << sc_time_stamp() << ": MEM received read hit" << endl;
+            stats_readhit(0);
             tagMatch = true;
             ret_data = cache[setIndex].lines[i].data[blockOffset];
+            cache[setIndex].lines[i].tag = tag;
             update_aging_bits(setIndex, i);
             break;
         }
+        wait(1);
     }
-    if (!tagMatch) // if there's no hit
-    {
-        // find the oldest line to evict
+    if (!tagMatch) {
+        if(debug) cout << sc_time_stamp() << ": MEM received read miss" << endl;
+        stats_readmiss(0);
         int oldest = find_oldest(setIndex);
-        // evict and perform write-back if necessary
         if (cache[setIndex].lines[oldest].dirty)
-        {
-            cout << sc_time_stamp() << "evicting for read miss" << endl;
-            wait(100); // simulate writing back to memory and loading the block from memory
-            cache[setIndex].lines[oldest].dirty = 0; // set as clean
+        {   
+            if(debug) cout << sc_time_stamp() << ": MEM received read miss with dirty, writing back" << endl;
+            cache[setIndex].lines[oldest].dirty = 0;
         }
-        else
+        wait(100);
+        if (oldest == 0) 
         {
-            wait(100); // simulate loading the block from memory
+            if(debug) cout << sc_time_stamp() << ": MEM received read on a empty line" << endl;
+            oldest = 1;
         }
-        ret_data = cache[setIndex].lines[oldest].data[blockOffset]; // replace the data
+        cache[setIndex].lines[oldest].state = 1;
+        cache[setIndex].lines[oldest].tag = tag;
+        ret_data = cache[setIndex].lines[oldest].data[blockOffset];
         update_aging_bits(setIndex, oldest);
     }
 
@@ -192,61 +196,32 @@ int Cache::cpu_write(uint64_t addr) {
     uint64_t blockOffset = addr & blockOffsetMask;
     uint64_t tag = addr >> (SET_INDEX_BITS + BLOCK_OFFSET_BITS);
 
-    // check if the cache line is valid
-    bool emptyLines = containsZero(cache[setIndex].agingBits);
+    bool tagMatch = false;
 
-    if (emptyLines)
-    {
-        for (int i = 0; i < 8; i++)
-        {
-            if (cache[setIndex].j[i] == 0) // empty line
-            {
-                cout << sc_time_stamp() << "empty line found" << endl;
-                cache[setIndex].lines[i].data[blockOffset] = data;
-                cache[setIndex].lines[i].state = 1;
-                cache[setIndex].lines[i].tag = tag;
-                update_aging_bits(setIndex, i);
-                break;
-            }
+    for (uint64_t i = 0; i < SET_SIZE; i++) {
+        if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state == 1) {
+            if(debug) cout << sc_time_stamp() << ": MEM received write hit" << endl;
+            stats_writehit(0);
+            tagMatch = true;
+            // cache[setIndex].lines[i].data[blockOffset] = data;
+            cache[setIndex].lines[i].tag = tag;
+            update_aging_bits(setIndex, i);
+            break;
         }
     }
-    else
-    {
-        // first check if theres matching tag in the set
-        bool tagMatch = false;
-        for (int i = 0; i < 8; i++)
-        {
-            // there could be multiple lines having the same tag so you need to check whether
-            if (cache[setIndex].lines[i].tag == tag) // if there's a hit
-            {
-                cout << sc_time_stamp() << "tag match found" << endl;
-                tagMatch = true;
-                cache[setIndex].lines[i].data[blockOffset] = data;
-                cache[setIndex].lines[i].state = 1;
-                cache[setIndex].lines[i].dirty = 1; // set as dirty
-                update_aging_bits(setIndex, i);
-                break;
-            }
-        }
-        if (!tagMatch) // if there's no hit
-        {
-            cout<<sc_time_stamp()<<"no tag match found"<<endl;
-            // find the oldest line to evict
-            int oldest = find_oldest(setIndex);
-            // evict and perform write-back if necessary
-            if (cache[setIndex].lines[oldest].dirty)
-            {
-                cout<<sc_time_stamp()<<"evicting for write miss"<<endl;
-                wait(100); // simulate writing back to memory and allocate-on-write
-            }
-            else
-            {
-                wait(100); // simulate allocate-on-write with data retrieval from memory
-            }
-            cache[setIndex].lines[oldest].data[blockOffset] = data; // replace the data
-            cache[setIndex].lines[oldest].state = 1;
-            update_aging_bits(setIndex, oldest);
-        }
+    if (!tagMatch) {
+        // if(debug) cout << sc_time_stamp() << ": MEM received write miss" << endl;
+        log(name(), "write miss on address", addr);
+        stats_writemiss(id);
+        int oldest = find_oldest(setIndex);
+        wait(100);
+        if (cache[setIndex].lines[oldest].dirty) cache[setIndex].lines[oldest].dirty = 0;
+        if (oldest == 0) oldest = 1;
+        cache[setIndex].lines[oldest].state = 1;
+        cache[setIndex].lines[oldest].tag = tag;
+        // cache[setIndex].lines[oldest].data[blockOffset] = data;
+        cache[setIndex].lines[oldest].dirty = 1;
+        update_aging_bits(setIndex, oldest);
     }
     // int hit = rand() % 2; // cache not modeled.
     // int dirty = rand() % 2;
