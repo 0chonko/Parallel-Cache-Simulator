@@ -138,7 +138,6 @@ private:
     int find_oldest(uint64_t setIndex) { return std::distance(cache[setIndex].agingBits, std::min_element(cache[setIndex].agingBits, cache[setIndex].agingBits + SET_SIZE)); }
 
             wait(Port_Func.value_changed_event());
-            // cout << sc_time_stamp() << "data at 10 is: " << cache->lines[0].state << endl;
             Function f = Port_Func.read();
             uint64_t addr = Port_Addr.read();
             uint64_t data = 0;

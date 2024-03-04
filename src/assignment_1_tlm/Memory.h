@@ -3,7 +3,6 @@
 
 #include <iostream>
 #include <systemc.h>
-
 #include "bus_slave_if.h"
 #include "helpers.h"
 

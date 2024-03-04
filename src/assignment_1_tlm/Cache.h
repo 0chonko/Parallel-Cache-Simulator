@@ -6,12 +6,14 @@
 
 #include "Memory.h"
 #include "cpu_cache_if.h"
+#include "bus_master_if.h"
+
 #include "helpers.h"
+#include "types.h"
 
 // Class definition without the SC_ macro because we implement the
 // cpu_cache_if interface.
-class Cache : public cpu_cache_if, public sc_module {
-    private:
+class Cache : public cpu_cache_if, public bus_master_if, sc_module {
     // struct CacheLine
     // {
     //     uint64_t tag;
@@ -39,25 +41,36 @@ class Cache : public cpu_cache_if, public sc_module {
 
     // CacheSet *cache;
 
-    void update_aging_bits(uint64_t setIndex, uint64_t blockOffset);
-    bool containsZero(uint8_t *agingBits);
-    int find_oldest(uint64_t setIndex);
+
 
     public:
-    sc_port<bus_slave_if> memory; //cache to bus
+    // sc_port<bus_slave_if> memory; //cache to bus
+        sc_port<bus_master_if> bus; // use this to communicate to BUS
+        sc_in_clk clock; // Input for clock signal
 
-    // cpu_cache interface methods.
-    int cpu_read(uint64_t addr);
-    int cpu_write(uint64_t addr);
-    sc_in<bool> snooping_signal; // Input for snooping/broadcast messages
+        int cpu_read(uint64_t addr);
+        int cpu_write(uint64_t addr);
+        int read_to_bus(uint64_t addr);
+        int write_to_bus(uint64_t addr);
+        void update_aging_bits(uint64_t setIndex, uint64_t blockOffset);
+        bool containsZero(uint8_t *agingBits);
+        int find_oldest(uint64_t setIndex);
+        // void handle_snoop();
+        // void handle_clock();
 
-    SC_CTOR(Cache, int id) : sc_module(sc_module_name("cache"){
-        // You can add processes that would handle snooping_signal changes
-        SC_METHOD(handle_snoop);
-        sensitive << snooping_signal;
-        dont_initialize();
-    }
-    // Constructor without SC_ macro.
+    // sc_in<snoop_message> snooping_signal; // Input for snooping/broadcast messages 
+    // TODO: make sure the issuing cache doesnt invalidate itself
+
+    // SC_CTOR(Cache, sc_module_name name_, int id_) : sc_module(name_), id(id_) {
+    //     SC_METHOD(handle_snoop);
+    //     sensitive << snooping_signal.value_changed_event();
+
+    //     SC_METHOD(handle_clock);
+    //     sensitive << clock.pos();
+
+    //     dont_initialize();
+    // }
+
     Cache(sc_module_name name_, int id_) : sc_module(name_), id(id_) {
         // Passive for now, just handle cpu requests.
     }

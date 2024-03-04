@@ -6,8 +6,13 @@
 #include <cstdint>   // Required for fixed width integer types
 
 #include "Cache.h"
+#include "bus_master_if.h"
 #include "psa.h"
+#include "types.h"
 
+// sc_port<bus_slave_if> cache;
+
+// sc_channel<snoop_message> *bus_channel;
 
 static const size_t MEM_SIZE = 2500;
 static const size_t CACHE_SIZE = 32768;
@@ -35,7 +40,6 @@ struct CacheSet {
 CacheSet* cache = new CacheSet[SET_COUNT];
 bool debug = true;
 
-sc_in<bool> snooping_signal; //TODO: Input for snooping/broadcast messages
 
 
 // dumps the content of the cache
@@ -98,7 +102,6 @@ int Cache::find_oldest(uint64_t setIndex) {
 int Cache::cpu_read(uint64_t addr) {
     uint64_t data = 0;
     uint32_t ret_data = 0;
-    // cout << sc_time_stamp() << "your port data received is " << Port_Addr.read() << endl;
 
     // Extract the set index and block offset
     uint64_t setIndex = (addr >> BLOCK_OFFSET_BITS) & setIndexMask;
@@ -109,7 +112,6 @@ int Cache::cpu_read(uint64_t addr) {
     bool tagMatch = false;
     for (uint64_t i = 0; i < SET_SIZE; i++) {
         if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state == 1) {
-            // if(debug) cout << sc_time_stamp() << ": MEM received read hit" << endl;
             log(name(), "read hit on address", addr);
             stats_readhit(id);
             tagMatch = true;
@@ -120,16 +122,14 @@ int Cache::cpu_read(uint64_t addr) {
         }
     }
     if (!tagMatch) {
-        // if(debug) cout << sc_time_stamp() << ": MEM received read miss" << endl;
         log(name(), "read miss on address", addr);
         stats_readmiss(id);
         int oldest = find_oldest(setIndex);
 
         log(name(), "read address", addr);
-        memory->read(addr);
+        bus->read_to_bus(addr);
         if (oldest == 0) 
         {
-            // if(debug) cout << sc_time_stamp() << ": MEM received read on a empty line" << endl;
             oldest = 1;
         }
         cache[setIndex].lines[oldest].state = 1;
@@ -147,7 +147,6 @@ int Cache::cpu_read(uint64_t addr) {
 int Cache::cpu_write(uint64_t addr) {
     uint64_t data = 0;
     uint32_t ret_data = 0;
-    // cout << sc_time_stamp() << "your port data received is " << Port_Addr.read() << endl;
 
     // Extract the set index and block offset
     uint64_t setIndex = (addr >> BLOCK_OFFSET_BITS) & setIndexMask;
@@ -156,34 +155,41 @@ int Cache::cpu_write(uint64_t addr) {
 
     bool tagMatch = false;
 
+    // TODO: finish write-through
     for (uint64_t i = 0; i < SET_SIZE; i++) {
         if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state == 1) {
-            // if(debug) cout << sc_time_stamp() << ": MEM received write hit" << endl;
             stats_writehit(0);
             tagMatch = true;
-            // cache[setIndex].lines[i].data[blockOffset] = data;
             cache[setIndex].lines[i].tag = tag;
             update_aging_bits(setIndex, i);
+            bus->write_to_bus(addr);
             break;
         }
     }
+
+
     if (!tagMatch) {
         // if(debug) cout << sc_time_stamp() << ": MEM received write miss" << endl;
         log(name(), "write miss on address", addr);
         stats_writemiss(id);
         int oldest = find_oldest(setIndex);
         log(name(), "write address", addr);
-        memory->write(addr);
-        // if (cache[setIndex].lines[oldest].dirty) cache[setIndex].lines[oldest].dirty = 0;
+        bus->write_to_bus(addr);
         if (oldest == 0) oldest = 1;
         cache[setIndex].lines[oldest].state = 1;
         cache[setIndex].lines[oldest].tag = tag;
-        // cache[setIndex].lines[oldest].data[blockOffset] = data;
-        // cache[setIndex].lines[oldest].dirty = 1;
         update_aging_bits(setIndex, oldest);
     }
 
     return 0; // indicates succes.
+}
+
+int Cache::read_to_bus(uint64_t addr){
+    return 0;
+}
+
+int Cache::write_to_bus(uint64_t addr) {
+    return 0;
 }
 
 // wipe the data when the class instance is destroyed as a member function

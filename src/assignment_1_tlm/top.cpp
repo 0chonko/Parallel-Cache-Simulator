@@ -11,6 +11,8 @@
 #include "Memory.h"
 #include "Bus.h"
 #include "psa.h"
+#include "global_vars.h"
+
 
 using namespace std;
 
@@ -31,7 +33,6 @@ int sc_main(int argc, char *argv[]) {
 
         // Initialize statistics counters
         stats_init();
-
         // Automatically determine the number of CPUs and caches from the tracefiles
         // TDOD: get the number of CPUs from the tracefile
         const int NUM_CPUS = 2;
@@ -39,6 +40,7 @@ int sc_main(int argc, char *argv[]) {
 
         CPU *cpus[NUM_CPUS];
         Cache *caches[NUM_CACHES];
+                cout << "reached 1" << endl;
 
         for (int i = 0; i < NUM_CPUS; i++) {
             cpus[i] = new CPU(sc_gen_unique_name("cpu"), i);
@@ -47,6 +49,7 @@ int sc_main(int argc, char *argv[]) {
         for (int i = 0; i < NUM_CACHES; i++) {
             caches[i] = new Cache(sc_gen_unique_name("cache"), i);
         }
+
         Memory *memory = new Memory("memory");
         Bus *bus = new Bus("bus");
 
@@ -56,31 +59,20 @@ int sc_main(int argc, char *argv[]) {
 
         // Connect instances
         for (int i = 0; i < NUM_CPUS; i++) {
-            cpus[i]->cache(*caches[i]);
-            cpus[i]->clock(clk);
+            cpus[i]->clock(clk);     // connect cpus to clock
+            caches[i]->clock(clk);   // connect caches to clock
+            bus->clock(clk);         // connect bus to clock
         }
-
-        // Connect bus to memory
-        bus->memory(*memory);
-
-        // Create signals for communication between cache and bus
-        sc_signal<bool> cache_request[NUM_CACHES];
-        sc_signal<bool> cache_response[NUM_CACHES];
-        sc_signal<sc_uint<ADDRESS_WIDTH>> address[NUM_CACHES]; // Assuming ADDRESS_WIDTH is defined.
-        sc_signal<data_t> data_to_cache[NUM_CACHES]; // Assuming data_t is a data type for cache lines.
-        sc_signal<data_t> data_from_cache[NUM_CACHES];
 
         // Connect caches to the bus
         for (int i = 0; i < NUM_CACHES; i++) {
+            cpus[i]->cache(*caches[i]); // connect cpus to caches
             // Connect Cache to Bus
-            caches[i]->bus(*bus);
-            // Bind cache signals to bus signals
-            bus->cache_request[i](cache_request[i]);
-            bus->cache_response[i](cache_response[i]);
-            bus->address[i](address[i]);
-            bus->data_to_cache[i](data_to_cache[i]);
-            bus->data_from_cache[i](data_from_cache[i]);
+            caches[i]->bus(bus->cache_ports[i]);         
+            // caches[i]->bus_channel(bus->broadcast_channel); // connect caches to bus
         }
+        // Connect bus to memory
+        bus->memory(*memory);
 
         // Start Simulation
         sc_start();
@@ -94,6 +86,7 @@ int sc_main(int argc, char *argv[]) {
             delete cpus[i];
             delete caches[i];
         }
+        
         delete memory;
         delete bus;
 
