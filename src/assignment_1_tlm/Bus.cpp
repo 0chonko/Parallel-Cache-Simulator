@@ -1,48 +1,3 @@
-READ
-	P1 requests data at 0000
-	
-	C1 miss read 
-		- send bus mem request from memory
-		- waits 100ns for the result
-		- evicts if anything to evict
-		- sends data to CPU
-	
-	C1 hit read 
-		- check for validity 
-		- if invalid retrieve memory 
-		- set to valid 
-		- send to CPU
-
-WRITE
-	P1 writes data at 0000
-	
-	C1 miss write 
-		- send bus mem request from memory
-		- waits 100ns for the result
-		- evicts if anything to evict
-		- sends data to CPU
-		- broadcasts invalidation bit to the bus 
-
-	
-	C1 hit write 
-		- update value 
-		- broadcast invalidation to the bus for 0000
-		- write-through to memory (wait to complete)
-		- 
-		
-
-Snooping protocol
-State transitions
-	Stay invalid 
-		- recv NR, NW, PW (issue NW)
-	Stay valid
-		- recv PR, NR, PW (issue NW)
-	Go  invalid
-		- recv NW
-	Go valid
-		- Recv PR (issue NR)
-		
-		
 #ifndef MEMORY_H
 #define MEMORY_H
 
@@ -139,7 +94,7 @@ class Bus : public bus_slave_if, public sc_module {
         // Return OK
         return OK;
     }
-
+    
     // Write request (bus_slave_if)
     virtual int write(uint64_t addr) {
         // Check if there is a pending cache request
@@ -150,11 +105,6 @@ class Bus : public bus_slave_if, public sc_module {
 
         // Return OK
         return OK;
-    }
-
-    // Destructor
-    virtual ~Bus() {
-        // nothing to do here right now.
     }
 
     

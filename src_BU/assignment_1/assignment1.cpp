@@ -12,7 +12,7 @@
 
 #include <iostream>
 #include <iomanip>
-#include <systemc>
+#include <systemc.h>
 #include <algorithm>
 
 #include "psa.h"
@@ -31,93 +31,6 @@ static const size_t SET_SIZE = 8;
 static const size_t SET_COUNT = LINES_COUNT / SET_SIZE;
 bool debug = true;
 
-// whole cache line of 32 bytes can be transferred with a single read or write
-
-// SC_MODULE(Memory) {
-//     public:
-
-//     enum Function { FUNC_READ, FUNC_WRITE };
-//     enum RetCode { RET_READ_DONE, RET_WRITE_DONE };
-
-//     // signal in
-//     sc_in<bool> Port_CLK;
-//     sc_in<Function> Port_Func;
-//     sc_in<uint64_t> Port_Addr;
-
-//     // signal out
-//     sc_out<RetCode> Port_Done;
-
-//     // signal inout
-//     sc_inout_rv<64> Port_Data;
-
-//     SC_CTOR(Memory) {
-//         SC_THREAD(execute);
-//         sensitive << Port_CLK.pos();
-//         dont_initialize();
-//         // memory data type (64bit addresses)
-//         m_data = new uint64_t[MEM_SIZE];
-//     }
-
-//     ~Memory() {
-//         delete[] m_data;
-//     }
-
-//     // dumps the content of the memory
-//     void dump() {
-//         for (size_t i = 0; i < MEM_SIZE; i++) {
-//             cout << setw(5) << i << ": " << setw(5) << m_data[i];
-//             if (i % 8 == 7) {
-//                 cout << endl;
-//             }
-//         }
-//     }
-
-//     private:
-//     uint64_t *m_data;
-
-//     // Direct mapped-block = 12 mod 8=4
-//     // 2-way set associative - set = 12 mod 8/2 = 0
-//     // Fully associative-one set of 8 lines so anywhere in cache
-
-//     // convert incoming address to 8-way-set
-//     size_t addressModuloOperation(uint64_t address) {
-//         return Port_Addr % ((CACHE_SIZE / (sizeof(uint64_t) * 4))  / 8);
-//     }
-
-//     void execute() {
-//         while (true) {
-//             wait(Port_Func.value_changed_event());
-
-//             Function f = Port_Func.read();
-//             uint64_t addr = Port_Addr.read();
-//             uint64_t data = 0;
-//             if (f == FUNC_WRITE) {
-//                 // cout << sc_time_stamp() << ": MEM received write" << endl;
-//                 data = Port_Data.read().to_uint64();
-//             } else {
-//                 // cout << sc_time_stamp() << ": MEM received read" << endl;
-//             }
-//             // cout << sc_time_stamp() << ": MEM address " << addr << endl;
-
-//             // This simulates memory read/write delay
-//             wait(100);
-
-//             if (f == FUNC_READ) {
-//                 // read at addr and return ret code
-//                 Port_Data.write((addr < MEM_SIZE) ? m_data[addr] : 0);
-//                 Port_Done.write(RET_READ_DONE);
-//                 wait();
-//                 Port_Data.write(float_64_bit_wire); // string with 64 "Z"'s
-//             } else {
-//                 if (addr < MEM_SIZE) {
-//                     // update addr
-//                     m_data[addr] = data;
-//                 }
-//                 Port_Done.write(RET_WRITE_DONE);
-//             }
-//         }
-//     }
-// };
 
 SC_MODULE(Memory)
 {

@@ -1,11 +1,14 @@
 {
     "cmake.sourceDirectory": "/home/germanfak/Downloads/systemc-2.3.3",
     "files.associations": {
+        "*.embeddedhtml": "html",
         "ostream": "cpp",
         "iostream": "cpp",
         "bitset": "cpp",
         "array": "cpp",
         "string": "cpp",
-        "string_view": "cpp"
+        "string_view": "cpp",
+        "new": "cpp",
+        "*.tcc": "cpp"
     }
 }
