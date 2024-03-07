@@ -2,102 +2,73 @@
 #define BUS_H
 
 #include <iostream>
+#include <vector>
+#include <queue>
 #include <systemc.h>
 
 #include "bus_slave_if.h"
 #include "bus_master_if.h"
 #include "helpers.h"
-#include "types.h"
-#include "global_vars.h"
+#include "psa.h"
+#include "Cache.h"
 
 
-class Bus : public bus_master_if, public bus_slave_if, public sc_module {
-public:
+class Bus : public bus_slave_if, public bus_master_if,  sc_module {
+public:    
     sc_port<bus_slave_if> memory; // Bus to memory
+    sc_signal<sc_uint<64>> out; // Bus to cache
+    std::vector<Cache*> caches;
     sc_in_clk clock;
-    sc_port<bus_master_if> cache_ports[2];
+    struct BusRequest {
+        uint64_t addr;
+        int id;
+        bool isWrite;
+    };
+    //fifo queue of busRequests
+    std::queue<BusRequest> requestQueue;
+    std::queue<BusRequest> responseQueue;
 
-    // Constructor
-    SC_CTOR(Bus);
+    // (bus_slave_if)
+    int read(uint64_t addr, int id) override;
+    int write(uint64_t addr, int id) override;
+    void request(uint64_t addr, bool isWrite, int id) override;
+    int snoop(uint64_t addr, int src_cache, bool isWrite) override;
+    bool busy();
+    BusRequest getNextRequest(); // Declaration of getNextRequest() method
+    void pushRequest(BusRequest request);
+    void processRequest(BusRequest request);
+    void execute();
+    void ret_memory_response(uint64_t addr, int id);
 
-    // Bus operation process
-    void cache_request(); // Incoming request from cache, spread snoop and forward to memory 
-    void memory_request(); // Incoming request from memory
-    void select_next_priority();
+    SC_HAS_PROCESS(Bus);
 
-    // Read request (bus_slave_if)
-    int read(uint64_t addr) override;
+    Bus(sc_module_name name) : sc_module(name) {
+        state = IDLE;
+        SC_THREAD(execute);
+        sensitive << clock.pos();
+    }
 
-    // Write request (bus_slave_if)
-    int write(uint64_t addr) override;
+    ~Bus() {
+        // calculate average of avg_acquisition_time
+        sc_time sum = sc_time(0, SC_NS);
+        for (auto &time : avg_acquisition_time) {
+            sum += time;
+        }
+        sc_time avg = sum / avg_acquisition_time.size();
+        std::cout << "Average acquisition time: " << avg << std::endl;
+    }
+    
+private:
+    enum BusState {
+            IDLE,
+            OCCUPIED
+        };
 
-    // Read request (bus_master_if)
-    int read_to_bus(uint64_t addr) override;
+    BusState state;
+    std::vector<sc_time> avg_acquisition_time;
+    sc_time current_timestamp;
+    uint64_t current_addr;
 
-    // Write request (bus_master_if)
-    int write_to_bus(uint64_t addr) override;
 };
 
 #endif // BUS_H
-/* ach cache controller connected to the bus receives every memory request
-* on the bus made by other caches, and makes the proper modification on its local cache line state.
-*/
-
-/*he bus can only serve one request at any certain time. If one cache occupies the bus, other
-caches have to wait for the current operation to complete before they can utilize the bus. The
-cache does not occupy the bus while it waits for the memory to respond. This means that you
-will need to implement a split-transaction bus (). The responses from memory should have 
-priority on the bus.
-*/
-/* the bus can receive multiple requests at the same time, so it needs to arbitrate between them.
-*/
-/* allow the bus to receive requests from the caches and memory on the rising bus edge, and select the highest priority request on the falling clock edge. 
-*/
-/* broadcast snooping messages to all caches
-*/
-/* The work of a module such as the Cache, Bus or Memory may consist of multiple separate tasks. 
-*In that case you can create multiple SC_THREAD's or SC_METHOD's in a single module, one for each task.  Since SystemC uses cooperative multi-tasking where sc_threads and sc_methods are run sequentially you do not have to worry about race conditions when accessing shared resources.
-*/
-
-// private:
-//     struct BusRequest
-//     {
-//         uint64_t addr;
-//         bool isWrite;
-//         bool isSnooping;
-//         int id;
-//     };
-
-//     sc_event busRequestEvent;
-//     sc_event busResponseEvent;
-//     BusRequest currentRequest;
-//     bool busOccupied;
-
-// public:
-//     SC_HAS_PROCESS(Bus);
-
-//     Bus(sc_module_name name) : sc_module(name), busOccupied(false) {
-//         SC_THREAD(busArbitration);
-//         sensitive << busRequestEvent;
-//         dont_initialize();
-//     }
-
-//     void busArbitration() {
-//         while (true) {
-//             wait(busRequestEvent);
-
-//             // Select the highest priority request
-//             // TODO: Implement the bus arbitration logic here
-
-//             // Process the selected request
-//             // TODO: Implement the bus request processing logic here
-
-//             // Notify the cache/memory about the response
-//             busResponseEvent.notify();
-//         }
-//     }
-
-//     // Implement the bus_slave_if methods here
-//     // ...
-
-// };

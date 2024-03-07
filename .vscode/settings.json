@@ -12,6 +12,7 @@
         "*.tcc": "cpp",
         "compare": "cpp",
         "ctime": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "atomic": "cpp"
     }
 }

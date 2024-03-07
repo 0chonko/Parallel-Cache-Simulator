@@ -8,13 +8,12 @@
 
 #include "CPU.h"
 #include "Cache.h"
+#include "psa.h"
 #include "Memory.h"
 #include "Bus.h"
-#include "psa.h"
-#include "global_vars.h"
-
 
 using namespace std;
+using namespace sc_core;    
 
 int sc_main(int argc, char *argv[]) {
     try {
@@ -33,14 +32,12 @@ int sc_main(int argc, char *argv[]) {
 
         // Initialize statistics counters
         stats_init();
-        // Automatically determine the number of CPUs and caches from the tracefiles
-        // TDOD: get the number of CPUs from the tracefile
-        const int NUM_CPUS = 2;
+        const int NUM_CPUS = num_cpus;
         const int NUM_CACHES = NUM_CPUS;
 
         CPU *cpus[NUM_CPUS];
-        Cache *caches[NUM_CACHES];
-                cout << "reached 1" << endl;
+        std::vector<Cache*> caches(NUM_CACHES);
+
 
         for (int i = 0; i < NUM_CPUS; i++) {
             cpus[i] = new CPU(sc_gen_unique_name("cpu"), i);
@@ -49,30 +46,30 @@ int sc_main(int argc, char *argv[]) {
         for (int i = 0; i < NUM_CACHES; i++) {
             caches[i] = new Cache(sc_gen_unique_name("cache"), i);
         }
-
-        Memory *memory = new Memory("memory");
-        Bus *bus = new Bus("bus");
+        
+        Memory *memory  = new Memory("memory");
+        Bus *bus        = new Bus("bus");
 
 
         // The clock that will drive the CPU
         sc_clock clk;
-
-        // Connect instances
         for (int i = 0; i < NUM_CPUS; i++) {
-            cpus[i]->clock(clk);     // connect cpus to clock
-            caches[i]->clock(clk);   // connect caches to clock
-            bus->clock(clk);         // connect bus to clock
+            cpus[i]->clock(clk);
+            caches[i]->clock(clk);
+            // Connect instances
+            cpus[i]->cache(*caches[i]);
+            caches[i]->bus(*bus);
+            // caches[i]->in(bus->out);
         }
-
-        // Connect caches to the bus
-        for (int i = 0; i < NUM_CACHES; i++) {
-            cpus[i]->cache(*caches[i]); // connect cpus to caches
-            // Connect Cache to Bus
-            caches[i]->bus(bus->cache_ports[i]);         
-            // caches[i]->bus_channel(bus->broadcast_channel); // connect caches to bus
-        }
-        // Connect bus to memory
         bus->memory(*memory);
+        memory->bus(*bus);
+        bus->clock(clk);
+
+        // for (int i = 0; i < NUM_CACHES; i++) {
+        bus->caches = caches;
+
+
+        cout << "Starting simulation" << endl;
 
         // Start Simulation
         sc_start();
@@ -84,12 +81,12 @@ int sc_main(int argc, char *argv[]) {
         // Cleanup components
         for (int i = 0; i < NUM_CPUS; i++) {
             delete cpus[i];
+        }
+        for (int i = 0; i < NUM_CACHES; i++) {
             delete caches[i];
         }
-        
         delete memory;
         delete bus;
-
     } catch (exception &e) {
         cerr << e.what() << endl;
     }

@@ -159,4 +159,53 @@ class Bus : public bus_slave_if, public sc_module {
 
     
 };
-Z
+
+#############################################################
+
+// typedef std::vector<simple_bus_request *> simple_bus_request_vec;
+// simple_bus_request_vec m_requests;
+// simple_bus_request *m_current_request;
+
+
+// simple_bus_request * simple_bus::get_request(unsigned int priority)
+// {
+//   simple_bus_request *request = (simple_bus_request *)0;
+//   for (unsigned int i = 0; i < m_requests.size(); ++i)
+//     {
+//       request = m_requests[i];
+//       if ((request) &&
+// 	  (request->priority == priority))
+// 	return request;
+//     }
+//   request = new simple_bus_request;
+//   request->priority = priority;
+//   m_requests.push_back(request);
+//   return request;		
+// }
+
+// simple_bus_request * simple_bus::get_next_request()
+// {
+//   // the slave is done with its action, m_current_request is
+//   // empty, so go over the bag of request-forms and compose
+//   // a set of likely requests. Pass it to the arbiter for the
+//   // final selection
+//   simple_bus_request_vec Q;
+//   for (unsigned int i = 0; i < m_requests.size(); ++i)
+//     {
+//       simple_bus_request *request = m_requests[i];
+//       if ((request->status == SIMPLE_BUS_REQUEST) ||
+// 	  (request->status == SIMPLE_BUS_WAIT))
+// 	{
+// 	  if (m_verbose) 
+// 	    sb_fprintf(stdout, "%g %s : request (%d) [%s]\n",
+// 		       sc_time_stamp().to_double(), name(), 
+// 		       request->priority, simple_bus_status_str[request->status]);
+// 	  Q.push_back(request);
+// 	}
+//     }
+//   if (Q.size() > 0)
+//     return arbiter_port->arbitrate(Q);
+//   return (simple_bus_request *)0;
+// }
+
+

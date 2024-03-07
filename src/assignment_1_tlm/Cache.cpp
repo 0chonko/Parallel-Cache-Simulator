@@ -8,14 +8,16 @@
 #include "Cache.h"
 #include "bus_master_if.h"
 #include "psa.h"
-#include "types.h"
+// #include "types.h"
 
 // sc_port<bus_slave_if> cache;
 
 // sc_channel<snoop_message> *bus_channel;
 
+
 static const size_t MEM_SIZE = 2500;
-static const size_t CACHE_SIZE = 32768;
+static const size_t CACHE_SIZE = 16384; // 4kb   
+// static const size_t CACHE_SIZE = 32768;
 // static const size_t CACHE_SIZE = 65536; // 64kb
 // static const size_t CACHE_SIZE = 131072; // 128kb 
 // static const size_t CACHE_SIZE = 524288; // 512kb
@@ -23,6 +25,8 @@ static const size_t LINES_COUNT = CACHE_SIZE / 32;
 static const size_t LINE_SIZE = 32; //* sizeof(uint64_t);
 static const size_t SET_SIZE = 8;
 static const size_t SET_COUNT = LINES_COUNT / SET_SIZE;
+bool RET_RESPONSE = false;
+
 
 struct CacheLine {
     uint64_t tag;
@@ -77,7 +81,7 @@ uint64_t blockOffsetMask = (1ULL << BLOCK_OFFSET_BITS) - 1;
 // uint64_t tagMask = (1ULL << TAG_BITS) - 1;
 
 void Cache::update_aging_bits(uint64_t setIndex, uint64_t lineIndex) {
-    for (int i = 0; i < 8; i++) {
+    for (uint64_t i = 0; i < 8; i++) {
         if (i != lineIndex) {
             if (cache[setIndex].agingBits[i] > 1) {
                 cache[setIndex].agingBits[i] -= 1;
@@ -100,12 +104,9 @@ int Cache::find_oldest(uint64_t setIndex) {
  * Called by CPU.
  */
 int Cache::cpu_read(uint64_t addr) {
-    uint64_t data = 0;
-    uint32_t ret_data = 0;
-
     // Extract the set index and block offset
     uint64_t setIndex = (addr >> BLOCK_OFFSET_BITS) & setIndexMask;
-    uint64_t blockOffset = addr & blockOffsetMask;
+    // uint64_t blockOffset = addr & blockOffsetMask;
     uint64_t tag = addr >> (SET_INDEX_BITS + BLOCK_OFFSET_BITS);
 
 
@@ -113,13 +114,13 @@ int Cache::cpu_read(uint64_t addr) {
     for (uint64_t i = 0; i < SET_SIZE; i++) {
         if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state == 1) {
             log(name(), "read hit on address", addr);
-            stats_readhit(id);
+            
             tagMatch = true;
-            ret_data = cache[setIndex].lines[i].data[blockOffset];
             cache[setIndex].lines[i].tag = tag;
             update_aging_bits(setIndex, i);
+            stats_readhit(id);
             break;
-        }
+        } 
     }
     if (!tagMatch) {
         log(name(), "read miss on address", addr);
@@ -127,16 +128,23 @@ int Cache::cpu_read(uint64_t addr) {
         int oldest = find_oldest(setIndex);
 
         log(name(), "read address", addr);
-        bus->read_to_bus(addr);
+
+        // bus->read_to_bus(addr);
+        bus->snoop(addr, id, 0);
+        bus->request(addr, false, id);
+        wait_for_response(addr, id); 
+
         if (oldest == 0) 
         {
             oldest = 1;
         }
         cache[setIndex].lines[oldest].state = 1;
+        log(name(), "cacheline valid again: ", addr);
         cache[setIndex].lines[oldest].tag = tag;
-        ret_data = cache[setIndex].lines[oldest].data[blockOffset];
         update_aging_bits(setIndex, oldest);
     }
+    wait(1);
+    RET_RESPONSE = false;
 
     return 0; // Done, return value 0 signals succes.
 }
@@ -145,54 +153,90 @@ int Cache::cpu_read(uint64_t addr) {
  * Called by CPU.
  */
 int Cache::cpu_write(uint64_t addr) {
-    uint64_t data = 0;
-    uint32_t ret_data = 0;
 
     // Extract the set index and block offset
     uint64_t setIndex = (addr >> BLOCK_OFFSET_BITS) & setIndexMask;
-    uint64_t blockOffset = addr & blockOffsetMask;
     uint64_t tag = addr >> (SET_INDEX_BITS + BLOCK_OFFSET_BITS);
 
     bool tagMatch = false;
 
-    // TODO: finish write-through
     for (uint64_t i = 0; i < SET_SIZE; i++) {
         if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state == 1) {
-            stats_writehit(0);
             tagMatch = true;
             cache[setIndex].lines[i].tag = tag;
-            update_aging_bits(setIndex, i);
-            bus->write_to_bus(addr);
+            update_aging_bits(setIndex, i); 
+            stats_writehit(id);
+
+            bus->snoop(addr, id, 1);
+            bus->request(addr, true, id); // write-through
+            wait_for_response(addr, id); 
+
             break;
-        }
+        } 
     }
 
 
     if (!tagMatch) {
-        // if(debug) cout << sc_time_stamp() << ": MEM received write miss" << endl;
         log(name(), "write miss on address", addr);
         stats_writemiss(id);
         int oldest = find_oldest(setIndex);
-        log(name(), "write address", addr);
-        bus->write_to_bus(addr);
+
+        bus->snoop(addr, id, 1);
+        log(name(), "sending bus request", addr);
+        bus->request(addr, true, id);
+
+        // wait until bus invokes response_received
+        wait_for_response(addr, id); 
+        log(name(), "received response back from memory", addr);       
+
         if (oldest == 0) oldest = 1;
         cache[setIndex].lines[oldest].state = 1;
+        log(name(), "cacheline valid again: ", addr); 
         cache[setIndex].lines[oldest].tag = tag;
         update_aging_bits(setIndex, oldest);
     }
+    wait(1);
+    RET_RESPONSE = false;
 
     return 0; // indicates succes.
 }
 
-int Cache::read_to_bus(uint64_t addr){
-    return 0;
+int Cache::read_snoop(uint64_t addr, bool isWrite) {
+    log(name(), "snoop request on address", addr);
+    if (isWrite) {
+        has_cacheline(addr);
+    } else {
+        return 1; // TODO: handle reads as well in the future?
+    }
+    wait(1);
+    return 1;
 }
 
-int Cache::write_to_bus(uint64_t addr) {
-    return 0;
+void Cache::wait_for_response(uint64_t addr, int id) {
+    log(name(), "waiting for response from memory", addr);
+    wait(memory_write_event);
+    log(name(), "received response from memory", addr);
 }
+
+void Cache::response_received(uint64_t addr, int id) {
+    RET_RESPONSE = true;
+    // wait(1);
+}
+
+bool Cache::has_cacheline(uint64_t addr) {
+    uint64_t setIndex = (addr >> BLOCK_OFFSET_BITS) & setIndexMask;
+    uint64_t tag = addr >> (SET_INDEX_BITS + BLOCK_OFFSET_BITS);
+    for (uint64_t i = 0; i < SET_SIZE; i++) {
+        if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state == 1) {
+            cache[setIndex].lines[i].state = 0;
+            log(name(), "invalidating line at address", addr);
+            return true;
+        }
+    }
+    return false;
+}
+
 
 // wipe the data when the class instance is destroyed as a member function
-
 
 

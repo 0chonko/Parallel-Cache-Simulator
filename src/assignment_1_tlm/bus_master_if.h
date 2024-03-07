@@ -8,8 +8,8 @@
  * communicate directly with the memory. */
 class bus_master_if : public virtual sc_interface {
     public:
-    virtual int read_to_bus(uint64_t addr) = 0;
-    virtual int write_to_bus(uint64_t addr) = 0;
+    virtual void request(uint64_t addr, bool isWrite, int id) = 0;
+    virtual int snoop(uint64_t addr, int src_cache, bool isWrite) = 0;
 };
 
 #endif
