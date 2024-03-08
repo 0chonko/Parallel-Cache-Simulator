@@ -16,8 +16,8 @@
 
 
 static const size_t MEM_SIZE = 2500;
-static const size_t CACHE_SIZE = 16384; // 4kb   
-// static const size_t CACHE_SIZE = 32768;
+// static const size_t CACHE_SIZE = 16384; // 4kb   
+static const size_t CACHE_SIZE = 32768;
 // static const size_t CACHE_SIZE = 65536; // 64kb
 // static const size_t CACHE_SIZE = 131072; // 128kb 
 // static const size_t CACHE_SIZE = 524288; // 512kb
@@ -27,11 +27,19 @@ static const size_t SET_SIZE = 8;
 static const size_t SET_COUNT = LINES_COUNT / SET_SIZE;
 bool RET_RESPONSE = false;
 
+enum CacheState {
+    INVALID,
+    VALID,
+    EXCLUSIVE, // only one cache can have this line
+    SHARED, // multiple caches can have this line
+    MODIFIED, // only one cache can have this line, and it's different from the memory
+    OWNED // multiple caches can have this line, and it's different from the memory
+};
 
 struct CacheLine {
     uint64_t tag;
     uint32_t data[8]; // 32 byte line
-    bool state; // valid/invalid bit
+    CacheState state; // valid/invalid bit
     // bool dirty;
 };
 
@@ -111,6 +119,8 @@ int Cache::cpu_read(uint64_t addr) {
 
 
     bool tagMatch = false;
+
+    // READ HIT
     for (uint64_t i = 0; i < SET_SIZE; i++) {
         if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state == 1) {
             log(name(), "read hit on address", addr);
@@ -118,10 +128,12 @@ int Cache::cpu_read(uint64_t addr) {
             tagMatch = true;
             cache[setIndex].lines[i].tag = tag;
             update_aging_bits(setIndex, i);
-            stats_readhit(id);
+            handle_read_hit(addr, setIndex, tag, i);
             break;
         } 
     }
+
+    // READ MISS
     if (!tagMatch) {
         log(name(), "read miss on address", addr);
         stats_readmiss(id);
@@ -160,22 +172,20 @@ int Cache::cpu_write(uint64_t addr) {
 
     bool tagMatch = false;
 
+    // WRITE HIT
     for (uint64_t i = 0; i < SET_SIZE; i++) {
         if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state == 1) {
             tagMatch = true;
             cache[setIndex].lines[i].tag = tag;
             update_aging_bits(setIndex, i); 
-            stats_writehit(id);
+            handle_write_hit(addr, setIndex, tag, i);
 
-            bus->snoop(addr, id, 1);
-            bus->request(addr, true, id); // write-through
-            wait_for_response(addr, id); 
 
             break;
         } 
     }
 
-
+    // WRITE MISS
     if (!tagMatch) {
         log(name(), "write miss on address", addr);
         stats_writemiss(id);
@@ -194,6 +204,8 @@ int Cache::cpu_write(uint64_t addr) {
         log(name(), "cacheline valid again: ", addr); 
         cache[setIndex].lines[oldest].tag = tag;
         update_aging_bits(setIndex, oldest);
+        log(name(), "line evicted: ", oldest); 
+
     }
     wait(1);
     RET_RESPONSE = false;
@@ -236,6 +248,130 @@ bool Cache::has_cacheline(uint64_t addr) {
     return false;
 }
 
+// This cache hits or misses:
+//     read/write miss 
+//         -> pull memory or another cache_request
+//     read miss 
+//         -> if available in another cache get it and set to SHARED 
+//         -> otherwise get from memory and set EXCLUSIVE
+//         -> INVALID to EXCLUSIVE or to SHARED (if other present)
+
+
+//     write miss 
+//         -> get from other cache or memory and set to MODIFIED
+//         -> if INVALID write back and to MODIFIED
+
+//     read hit
+//         -> stay same State
+
+//     write hit 
+//         -> from EXCLUSIVE set to MODIFIED and invalidate other copies
+//         -> MODIFIED stays
+//         -> from SHARED to MODIFIED
+//         -> from OWNED to MODIFIED
+
+
+// IN (incoming snoop and has_cacheLine is true):
+
+//     read hit 
+//         -> from MODIFIED to OWNED
+//         -> from SHARED stay SHARED
+//         -> from EXCLUSIVE to SHARED
+//         -> stay in OWNED
+//     write hit
+//         -> from EXCLUSIVE to INVALID
+//         -> from MODIFIED to INVALID
+//         -> from SHARED to INVALID
+//         -> from OWNED to INVALID
+
+void Cache::handle_write_hit(uint64_t addr, int setIndex, int tag, int i) {
+    stats_writehit(id);
+
+    bus->snoop(addr, id, 1);
+    bus->request(addr, true, id); // write-through
+    wait_for_response(addr, id); 
+
+    if (cache[setIndex].lines[i].state == EXCLUSIVE) {
+        cache[setIndex].lines[i].state = MODIFIED;
+        log(name(), "write hit, from EXCLUSIVE to MODIFIED", addr);
+    } else if (cache[setIndex].lines[i].state == MODIFIED) {
+        log(name(), "write hit, MODIFIED stays", addr);
+    } else if (cache[setIndex].lines[i].state == SHARED) {
+        cache[setIndex].lines[i].state = MODIFIED;
+        log(name(), "write hit, from SHARED to MODIFIED", addr);
+    } else if (cache[setIndex].lines[i].state == OWNED) {
+        cache[setIndex].lines[i].state = MODIFIED;
+        log(name(), "write hit, from OWNED to MODIFIED", addr);
+    }
+}
+
+void Cache::handle_write_miss(uint64_t addr, int setIndex, int tag) {
+    stats_writemiss(id);
+    int oldest = find_oldest(setIndex);
+    if (cache[setIndex].lines[oldest].state == INVALID) {
+        cache[setIndex].lines[oldest].state = MODIFIED;
+        log(name(), "write miss, from INVALID to MODIFIED", addr);
+    } else if (cache[setIndex].lines[oldest].state == EXCLUSIVE) {
+        cache[setIndex].lines[oldest].state = MODIFIED;
+        log(name(), "write miss, from EXCLUSIVE to MODIFIED", addr);
+    } else if (cache[setIndex].lines[oldest].state == SHARED) {
+        cache[setIndex].lines[oldest].state = MODIFIED;
+        log(name(), "write miss, from SHARED to MODIFIED", addr);
+    } else if (cache[setIndex].lines[oldest].state == OWNED) {
+        cache[setIndex].lines[oldest].state = MODIFIED;
+        log(name(), "write miss, from OWNED to MODIFIED", addr);
+    }
+}
+
+void Cache::handle_read_hit(uint64_t addr, int setIndex, int tag, int i) {
+    stats_readhit(id);
+    log(name(), "read hit, stay same state", addr);
+
+}
+
+void Cache::handle_read_miss(uint64_t addr, int setIndex, int tag) {
+    stats_readmiss(id);
+    int oldest = find_oldest(setIndex);
+    if (cache[setIndex].lines[oldest].state == INVALID) {
+        cache[setIndex].lines[oldest].state = EXCLUSIVE;
+        log(name(), "read miss, from INVALID to EXCLUSIVE", addr);
+    } else if (cache[setIndex].lines[oldest].state == EXCLUSIVE) {
+        cache[setIndex].lines[oldest].state = EXCLUSIVE;
+        log(name(), "read miss, stay EXCLUSIVE", addr);
+    } else if (cache[setIndex].lines[oldest].state == SHARED) {
+        cache[setIndex].lines[oldest].state = OWNED;
+        log(name(), "read miss, from SHARED to OWNED", addr);
+    } else if (cache[setIndex].lines[oldest].state == OWNED) {
+        cache[setIndex].lines[oldest].state = OWNED;
+        log(name(), "read miss, from OWNED to SHARED", addr);
+    }
+}
+
+void Cache::handle_probe_write_hit(uint64_t addr, int setIndex, int tag, int i) {
+    if (cache[setIndex].lines[i].state == EXCLUSIVE) {
+        cache[setIndex].lines[i].state = SHARED;
+        log(name(), "probe write hit, from EXCLUSIVE to SHARED", addr);
+    } else if (cache[setIndex].lines[i].state == MODIFIED) {
+        cache[setIndex].lines[i].state = SHARED;
+        log(name(), "probe write hit, from MODIFIED to SHARED", addr);
+    } else if (cache[setIndex].lines[i].state == OWNED) {
+        cache[setIndex].lines[i].state = SHARED;
+        log(name(), "probe write hit, from OWNED to SHARED", addr);
+    }
+}
+
+void Cache::handle_probe_read_hit(uint64_t addr, int setIndex, int tag) {
+    if (cache[setIndex].lines[0].state == EXCLUSIVE) {
+        cache[setIndex].lines[0].state = SHARED;
+        log(name(), "probe read hit, from EXCLUSIVE to SHARED", addr);
+    } else if (cache[setIndex].lines[0].state == MODIFIED) {
+        cache[setIndex].lines[0].state = SHARED;
+        log(name(), "probe read hit, from MODIFIED to SHARED", addr);
+    } else if (cache[setIndex].lines[0].state == OWNED) {
+        cache[setIndex].lines[0].state = SHARED;
+        log(name(), "probe read hit, from OWNED to SHARED", addr);
+    }
+}
 
 // wipe the data when the class instance is destroyed as a member function
 
