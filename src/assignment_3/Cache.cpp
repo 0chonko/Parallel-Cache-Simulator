@@ -91,11 +91,11 @@ uint64_t blockOffsetMask = (1ULL << BLOCK_OFFSET_BITS) - 1;
 void Cache::update_aging_bits(uint64_t setIndex, uint64_t lineIndex) {
     for (uint64_t i = 0; i < 8; i++) {
         if (i != lineIndex) {
-            if (cache[setIndex].agingBits[i] < 8) {
-                cache[setIndex].agingBits[i] += 1;
+            if (cache[setIndex].agingBits[i] > 1) {
+                cache[setIndex].agingBits[i] -= 1;
             }
         } else {
-            cache[setIndex].agingBits[i] = 1; // set as freshest entry
+            cache[setIndex].agingBits[i] = 8; // set as freshest entry
         }
     }
 }
@@ -105,7 +105,7 @@ bool Cache::containsZero(uint8_t* agingBits) {
 }
 
 int Cache::find_oldest(uint64_t setIndex) {
-    return std::distance(cache[setIndex].agingBits, std::max_element(cache[setIndex].agingBits, cache[setIndex].agingBits + 8));
+    return std::distance(cache[setIndex].agingBits, std::min_element(cache[setIndex].agingBits, cache[setIndex].agingBits + 8));
 }
 
 /* cpu_cache_if interface method
@@ -123,19 +123,41 @@ int Cache::cpu_read(uint64_t addr) {
     // READ HIT
     for (uint64_t i = 0; i < SET_SIZE; i++) {
         if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state == 1) {
+            log(name(), "read hit on address", addr);
+            
             tagMatch = true;
-            handle_probe_read_hit(addr, setIndex, tag, i);
+            cache[setIndex].lines[i].tag = tag;
+            update_aging_bits(setIndex, i);
+            handle_read_hit(addr, setIndex, tag, i);
             break;
         } 
     }
 
     // READ MISS
-    if (!tagMatch) { //TODO: or if state was invalid?
+    if (!tagMatch) {
+        log(name(), "read miss on address", addr);
+        stats_readmiss(id);
         int oldest = find_oldest(setIndex);
-        handle_read_miss(addr, setIndex, tag, oldest);
+
+        log(name(), "read address", addr);
+
+        // bus->read_to_bus(addr);
+        bus->snoop(addr, id, 0);
+        bus->request(addr, false, id);
+        wait_for_response(addr, id); 
+
+        if (oldest == 0) 
+        {
+            oldest = 1;
+        }
+        cache[setIndex].lines[oldest].state = 1;
+        log(name(), "cacheline valid again: ", addr);
+        cache[setIndex].lines[oldest].tag = tag;
+        update_aging_bits(setIndex, oldest);
     }
     wait(1);
     RET_RESPONSE = false;
+
     return 0; // Done, return value 0 signals succes.
 }
 
@@ -157,28 +179,32 @@ int Cache::cpu_write(uint64_t addr) {
             cache[setIndex].lines[i].tag = tag;
             update_aging_bits(setIndex, i); 
             handle_write_hit(addr, setIndex, tag, i);
+
+
             break;
         } 
     }
 
     // WRITE MISS
-    if (!tagMatch) { // TODO: or if state was invalid
+    if (!tagMatch) {
         log(name(), "write miss on address", addr);
-        int oldest = find_oldest(setIndex); // find the oldest line in the set to evict (if 0 then there's a free spot and its not eviction)
-        // bus->snoop(addr, id, 1);
-        // log(name(), "sent snoop write miss", addr);
-        // bus->request(addr, true, id);
-        // log(name(), "sent bus read request", addr);
-        // // wait until bus invokes response_received
-        // wait_for_response(addr, id); 
-        // log(name(), "received response back from memory", addr);      
-        handle_write_miss(addr, setIndex, tag, oldest); // TODO: test write miss 
-        // if (oldest == 0) oldest = 1;
-        // cache[setIndex].lines[oldest].state = 1;
-        // log(name(), "cacheline valid again: ", addr); 
-        // cache[setIndex].lines[oldest].tag = tag;
-        // update_aging_bits(setIndex, oldest);
-        // log(name(), "line evicted: ", oldest); 
+        stats_writemiss(id);
+        int oldest = find_oldest(setIndex);
+
+        bus->snoop(addr, id, 1);
+        log(name(), "sending bus request", addr);
+        bus->request(addr, true, id);
+
+        // wait until bus invokes response_received
+        wait_for_response(addr, id); 
+        log(name(), "received response back from memory", addr);       
+
+        if (oldest == 0) oldest = 1;
+        cache[setIndex].lines[oldest].state = 1;
+        log(name(), "cacheline valid again: ", addr); 
+        cache[setIndex].lines[oldest].tag = tag;
+        update_aging_bits(setIndex, oldest);
+        log(name(), "line evicted: ", oldest); 
 
     }
     wait(1);
@@ -258,7 +284,7 @@ bool Cache::has_cacheline(uint64_t addr) {
 //         -> from SHARED to INVALID
 //         -> from OWNED to INVALID
 
-void Cache::handle_write_hit(uint64_t addr, int setIndex, int tag, int matchedLineIndex) {
+void Cache::handle_write_hit(uint64_t addr, int setIndex, int tag, int i) {
     stats_writehit(id);
 
     bus->snoop(addr, id, 1);
@@ -279,19 +305,8 @@ void Cache::handle_write_hit(uint64_t addr, int setIndex, int tag, int matchedLi
     }
 }
 
-// it should miss if some other processor invalidates the entry while the bus request is in flight
-// before sending snoop
-void Cache::handle_write_miss(uint64_t addr, int setIndex, int tag, int evictionLineIndex) {
+void Cache::handle_write_miss(uint64_t addr, int setIndex, int tag) {
     stats_writemiss(id);
-
-    if (oldest == 0) oldest = 1;
-    cache[setIndex].lines[oldest].state = 1;
-    log(name(), "cacheline valid again: ", addr); 
-    cache[setIndex].lines[oldest].tag = tag;
-    update_aging_bits(setIndex, oldest);
-    log(name(), "line evicted: ", oldest);
-
-
     int oldest = find_oldest(setIndex);
     if (cache[setIndex].lines[oldest].state == INVALID) {
         cache[setIndex].lines[oldest].state = MODIFIED;
@@ -308,32 +323,14 @@ void Cache::handle_write_miss(uint64_t addr, int setIndex, int tag, int eviction
     }
 }
 
-void Cache::handle_read_hit(uint64_t addr, int setIndex, int tag, int matchedLineIndex) {
-    log(name(), "read hit on address", addr);
+void Cache::handle_read_hit(uint64_t addr, int setIndex, int tag, int i) {
     stats_readhit(id);
     log(name(), "read hit, stay same state", addr);
 
 }
 
-void Cache::handle_read_miss(uint64_t addr, int setIndex, int tag, int evictionLineIndex) {
-    log(name(), "read miss on address", addr);
+void Cache::handle_read_miss(uint64_t addr, int setIndex, int tag) {
     stats_readmiss(id);
-    log(name(), "read address", addr);
-
-    // bus->read_to_bus(addr);
-    bus->snoop(addr, id, 0);
-    bus->request(addr, false, id);
-    wait_for_response(addr, id); 
-
-    if (oldest == 0) 
-    {
-        oldest = 1;
-    }
-    cache[setIndex].lines[oldest].state = 1;
-    log(name(), "cacheline valid again: ", addr);
-    cache[setIndex].lines[oldest].tag = tag;
-    update_aging_bits(setIndex, oldest);
-
     int oldest = find_oldest(setIndex);
     if (cache[setIndex].lines[oldest].state == INVALID) {
         cache[setIndex].lines[oldest].state = EXCLUSIVE;
@@ -377,6 +374,5 @@ void Cache::handle_probe_read_hit(uint64_t addr, int setIndex, int tag) {
 }
 
 // wipe the data when the class instance is destroyed as a member function
-
 
 
