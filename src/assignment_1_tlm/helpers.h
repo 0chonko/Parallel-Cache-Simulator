@@ -17,15 +17,15 @@ inline void log_rest() {
 template <typename T, typename... Tail>
 void log_rest(const char *n1, T v1, Tail... tail) {
     // log head
-    // cout << ": " << n1 << ": " << v1;
-    // log_rest(tail...);
+    cout << ": " << n1 << ": " << v1;
+    log_rest(tail...);
 }
 
 /* Log a simple message. */
 inline void log(const char *comp, const char *msg) {
     if (sc_report_handler::get_verbosity_level() >= SC_MEDIUM) {
-        // cout << setw(t_width) << sc_time_stamp() << ": " << setw(n_width) << comp;
-        // cout << ": " << msg << endl;
+        cout << setw(t_width) << sc_time_stamp() << ": " << setw(n_width) << comp;
+        cout << ": " << msg << endl;
     }
 }
 
@@ -35,12 +35,12 @@ inline void log(const char *comp, const char *msg) {
 template <typename T, typename... Tail>
 void log(const char *comp, const char *n1, T v1, Tail... tail) {
     if (sc_report_handler::get_verbosity_level() >= SC_MEDIUM) {
-        // // timestamp and name
-        // cout << setw(t_width) << sc_time_stamp() << ": " << setw(n_width) << comp;
-        // // log head
-        // cout << ": " << n1 << ": " << v1;
-        // // log tail
-        // log_rest(tail...);
+        // timestamp and name
+        cout << setw(t_width) << sc_time_stamp() << ": " << setw(n_width) << comp;
+        // log head
+        cout << ": " << n1 << ": " << v1;
+        // log tail
+        log_rest(tail...);
     }
 }
 

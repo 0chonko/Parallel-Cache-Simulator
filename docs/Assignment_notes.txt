@@ -30,7 +30,7 @@ WRITE
 		- write-through to memory (wait to complete)
 		- 
 		
-
+2
 Snooping protocol
 State transitions
 	Stay invalid 
@@ -42,170 +42,48 @@ State transitions
 	Go valid
 		- Recv PR (issue NR)
 		
-		
-#ifndef MEMORY_H
-#define MEMORY_H
 
-#include <iostream>
-#include <systemc.h>
+############
+Assignment 3
 
-#include "bus_slave_if.h"
-#include "helpers.h"
-
-class Bus : public bus_slave_if, public sc_module {
-    // Input ports for requests from caches and memory
-    sc_in<bool> cache_request;
-    sc_in<bool> memory_request;
-
-    // Output ports for selected request and snooping messages
-    sc_out<bool> selected_request;
-    sc_out<bool> snooping_message;
-
-    // Internal variables for request arbitration
-    bool cache_request_pending;
-    bool memory_request_pending;
-
-    // Constructor
-    SC_CTOR(Bus) {
-        // Initialize internal variables
-        cache_request_pending = false;
-        memory_request_pending = false;
-
-        // Register the process for bus operation
-        SC_METHOD(busOperation);
-        sensitive << cache_request << memory_request;
-    }
-
-    // Bus operation process
-    void busOperation() {
-        // Check if there is a cache request
-        if (cache_request.read()) {
-            // Set cache request pending
-            cache_request_pending = true;
-        }
-
-        // Check if there is a memory request
-        if (memory_request.read()) {
-            // Set memory request pending
-            memory_request_pending = true;
-        }
-
-        // Check if there is a pending cache request and no pending memory request
-        if (cache_request_pending && !memory_request_pending) {
-            // Select cache request
-            selected_request.write(true);
-            snooping_message.write(false);
-
-            // Reset cache request pending
-            cache_request_pending = false;
-        }
-
-        // Check if there is a pending memory request and no pending cache request
-        if (memory_request_pending && !cache_request_pending) {
-            // Select memory request
-            selected_request.write(true);
-            snooping_message.write(false);
-
-            // Reset memory request pending
-            memory_request_pending = false;
-        }
-
-        // Check if there are both cache and memory requests pending
-        if (cache_request_pending && memory_request_pending) {
-            // Select cache request and broadcast snooping message
-            selected_request.write(true);
-            snooping_message.write(true);
-
-            // Reset cache and memory request pending
-            cache_request_pending = false;
-            memory_request_pending = false;
-        }
-
-        // No request selected
-        if (!cache_request_pending && !memory_request_pending) {
-            selected_request.write(false);
-            snooping_message.write(false);
-        }
-    }
-
-    // Read request (bus_slave_if)
-    virtual int read(uint64_t addr) {
-        // Check if there is a pending cache request
-        if (cache_request_pending) {
-            // Return busy
-            return BUSY;
-        }
-
-        // Return OK
-        return OK;
-    }
-
-    // Write request (bus_slave_if)
-    virtual int write(uint64_t addr) {
-        // Check if there is a pending cache request
-        if (cache_request_pending) {
-            // Return busy
-            return BUSY;
-        }
-
-        // Return OK
-        return OK;
-    }
-
-    // Destructor
-    virtual ~Bus() {
-        // nothing to do here right now.
-    }
-
-    
-};
-
-#############################################################
-
-// typedef std::vector<simple_bus_request *> simple_bus_request_vec;
-// simple_bus_request_vec m_requests;
-// simple_bus_request *m_current_request;
+This cache hits or misses:
+    read/write miss 
+        -> pull memory or another cache_request
+    read miss 
+        -> if available in another cache get it and set to SHARED 
+        -> otherwise get from memory and set EXCLUSIVE
+        -> INVALID to EXCLUSIVE or to SHARED (if other present)
 
 
-// simple_bus_request * simple_bus::get_request(unsigned int priority)
-// {
-//   simple_bus_request *request = (simple_bus_request *)0;
-//   for (unsigned int i = 0; i < m_requests.size(); ++i)
-//     {
-//       request = m_requests[i];
-//       if ((request) &&
-// 	  (request->priority == priority))
-// 	return request;
-//     }
-//   request = new simple_bus_request;
-//   request->priority = priority;
-//   m_requests.push_back(request);
-//   return request;		
-// }
+    write miss 
+        -> get from other cache or memory and set to MODIFIED
+        -> if INVALID write back and to MODIFIED
 
-// simple_bus_request * simple_bus::get_next_request()
-// {
-//   // the slave is done with its action, m_current_request is
-//   // empty, so go over the bag of request-forms and compose
-//   // a set of likely requests. Pass it to the arbiter for the
-//   // final selection
-//   simple_bus_request_vec Q;
-//   for (unsigned int i = 0; i < m_requests.size(); ++i)
-//     {
-//       simple_bus_request *request = m_requests[i];
-//       if ((request->status == SIMPLE_BUS_REQUEST) ||
-// 	  (request->status == SIMPLE_BUS_WAIT))
-// 	{
-// 	  if (m_verbose) 
-// 	    sb_fprintf(stdout, "%g %s : request (%d) [%s]\n",
-// 		       sc_time_stamp().to_double(), name(), 
-// 		       request->priority, simple_bus_status_str[request->status]);
-// 	  Q.push_back(request);
-// 	}
-//     }
-//   if (Q.size() > 0)
-//     return arbiter_port->arbitrate(Q);
-//   return (simple_bus_request *)0;
-// }
+    read hit
+        -> stay same State
+
+    write hit 
+        -> from EXCLUSIVE set to MODIFIED and invalidate other copies
+        -> MODIFIED stays
+        -> from SHARED to MODIFIED
+        -> from OWNED to MODIFIED
 
 
+IN (incoming snoop and has_cacheLine is true):
+
+    read hit 
+        -> from MODIFIED to OWNED
+        -> from SHARED stay SHARED
+        -> from EXCLUSIVE to SHARED
+        -> stay in OWNED
+    write hit
+        -> from EXCLUSIVE to INVALID
+        -> from MODIFIED to INVALID
+        -> from SHARED to INVALID
+        -> from OWNED to INVALID
+
+Caches holding registers of copies of values in other caches?
+
+
+
+MODIFIED and OWNED state, when evicted, should be written back to memory

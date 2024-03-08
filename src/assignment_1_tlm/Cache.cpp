@@ -134,14 +134,15 @@ int Cache::cpu_read(uint64_t addr) {
         bus->request(addr, false, id);
         wait_for_response(addr, id); 
 
-        if (oldest == 0) 
-        {
+        if (oldest == 0) {
             oldest = 1;
-        }
+        } else { // TODO: fix line eviction
         cache[setIndex].lines[oldest].state = 1;
-        log(name(), "cacheline valid again: ", addr);
+        log(name(), "cacheline valid again: ", addr); 
         cache[setIndex].lines[oldest].tag = tag;
+        log(name(), "line evicted: ", addr);
         update_aging_bits(setIndex, oldest);
+        }
     }
     wait(1);
     RET_RESPONSE = false;
@@ -189,11 +190,15 @@ int Cache::cpu_write(uint64_t addr) {
         wait_for_response(addr, id); 
         log(name(), "received response back from memory", addr);       
 
-        if (oldest == 0) oldest = 1;
+        if (oldest == 0) {
+            oldest = 1;
+        } else { // TODO: fix line eviction
         cache[setIndex].lines[oldest].state = 1;
         log(name(), "cacheline valid again: ", addr); 
         cache[setIndex].lines[oldest].tag = tag;
+        log(name(), "line evicted: ", addr);
         update_aging_bits(setIndex, oldest);
+        }
     }
     wait(1);
     RET_RESPONSE = false;
