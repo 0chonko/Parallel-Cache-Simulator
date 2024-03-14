@@ -9,61 +9,99 @@
 
 
 
-void Bus::request(uint64_t addr, bool isWrite, int id) {
+void Bus::request(uint64_t addr, bool isWrite, int id, bool isHit) {
+    bus_mutex.lock();
+
     // Create a new request
     BusRequest request;
     request.addr = addr;
     request.id = id;
     request.isWrite = isWrite;
+    request.isHit = isHit;
     // Queue the request
     pushRequest(request);
     current_timestamp = sc_time_stamp();
     current_addr = addr;
+    bus_mutex.unlock();
+
 
 }
 
 void Bus::execute() {
     while (true) {
         wait(); // Wait for the next positive edge of the clock
-        log(name(), "executing ", requestQueue.size() );
+        bus_mutex.lock();
 
         if (responseQueue.size() > 0) {
+            state = OCCUPIED;
             // If there are responses queued
             BusRequest nextResponse = responseQueue.front();
             ret_memory_response(nextResponse.addr, nextResponse.id);
+            state = IDLE;
+            bus_mutex.unlock();
+            continue;
+
             // continue;
         }
-
-       
 
         if (!busy() && !requestQueue.empty()) {
             // If the bus is not busy and there are requests queued
             state = OCCUPIED;
-
             // Get the next request from the queue
             BusRequest nextRequest = getNextRequest();
-
+            // first check if other caches containt this data address, if yes do state_update notify() and return, otherwise proceed with the rest of the code
+            if (!nextRequest.isHit) {
+                if (num_cpus > 1) {
+                    for (int i = 0; i < (int)num_cpus; i++)
+                    {
+                        if (i != nextRequest.id) {
+                            if (caches[i]->has_cacheline(nextRequest.addr) != -1) { // if other caches contain the data
+                                caches[nextRequest.id]->status_update_event.notify();
+                                state = IDLE;
+                                bus_mutex.unlock();
+                                wait();
+                                continue;
+                            } // TODO: send only if HIT
+                        }
+                    }
+                }
+            } else {
+                //Let all the caches know that you are processing this request (call read_snoop of each cache instance)
+                if (num_cpus > 1) {
+                    for (int i = 0; i < (int)num_cpus; i++)
+                    {
+                        if (i != nextRequest.id) {
+                            caches[i]->read_snoop(nextRequest.addr, nextRequest.isWrite); // TODO: send only if HIT
+                        }
+                    }
+                }
+            }
             // Process the request
             processRequest(nextRequest);
-
             // Once the request is processed, the bus is no longer occupied
             state = IDLE;
+            bus_mutex.unlock();
+            wait();
             continue;
         }
+        bus_mutex.unlock();
+
     }
 }
 
 
 void Bus::processRequest(BusRequest request) {
     // Log for debugging
-    log(name(), "processing request", request.addr);
 
     // If it's a write request, forward it to the memory
     if (request.isWrite) {
         memory->write(request.addr, request.id);
     } else {
         // It's a read request, forward it to the memory and possibly save the data
+        log(name(), "Memory read REQUEST at THIS TIME STAMP", request.addr);
         memory->read(request.addr, request.id);
+        log(name(), "Memory read RERURN at THIS TIME STAMP", request.addr);
+
     }
 
     // Log for report
@@ -71,10 +109,11 @@ void Bus::processRequest(BusRequest request) {
         sc_time acquisition_time = sc_time_stamp() - current_timestamp;
         avg_acquisition_time.push_back(acquisition_time);
     }
-
 }
 
 bool Bus::busy() {
+    cout << "BUSY: " << state << endl;
+
     bool isOccupied = state == OCCUPIED ? true : false;
     return isOccupied;
 }
@@ -93,6 +132,7 @@ void Bus::pushRequest(BusRequest request) {
     requestQueue.push(request);
 
 }
+
 int Bus::snoop(uint64_t addr, int src_cache, bool isWrite) {
         // cout << "Bus snoop request " << endl;
         int response_cnt = 0;
@@ -114,8 +154,6 @@ int Bus::snoop(uint64_t addr, int src_cache, bool isWrite) {
 void Bus::ret_memory_response(uint64_t addr, int id) {
     responseQueue.pop();
 }
-
-
 
 // Responses from memory
 int Bus::read(uint64_t addr, int id) {

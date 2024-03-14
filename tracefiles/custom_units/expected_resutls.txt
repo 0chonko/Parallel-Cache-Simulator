@@ -1,0 +1,37 @@
+Basic MOESI cache state transition test:
+
+P0: INVALID -> EXCLUSIVE -> SHARED -> MODIFIED -> OWNED
+P1: INVALID -> SHARED -> INVALID -> SHARED
+Read-only data sharing test:
+
+All processors: INVALID -> SHARED, all lines stay SHARED after repeated reads
+Exclusivity and invalidation test:
+
+P0: INVALID -> EXCLUSIVE -> INVALID -> SHARED -> INVALID
+P1: INVALID -> MODIFIED -> OWNED -> MODIFIED
+Multiple writers test:
+
+P0 and P1 race for MODIFIED, one wins and the other is invalidated
+P2 and P3: INVALID -> SHARED, loading from the winner of the P0/P1 race
+All processors write again, racing for MODIFIED
+Eviction and re-requesting test:
+
+P0: INVALID -> EXCLUSIVE -> SHARED -> INVALID (eviction) -> SHARED
+P1: INVALID -> SHARED -> MODIFIED -> OWNED
+Silent eviction and re-requesting test:
+
+P0: INVALID -> MODIFIED -> INVALID (silent eviction) -> MODIFIED
+P1: INVALID -> EXCLUSIVE -> INVALID
+Owned state propagation test:
+
+P0: INVALID -> MODIFIED -> OWNED -> INVALID
+P1: INVALID -> SHARED -> MODIFIED
+P2: INVALID -> SHARED -> INVALID
+Owned to Shared transition test:
+
+P0: INVALID -> MODIFIED -> OWNED -> SHARED, hit on final read
+P1: INVALID -> SHARED, hit on final read
+Exclusive to Modified transition test:
+
+P0: INVALID -> EXCLUSIVE -> MODIFIED -> OWNED -> MODIFIED
+P1: INVALID -> SHARED -> INVALID

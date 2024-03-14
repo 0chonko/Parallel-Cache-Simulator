@@ -90,8 +90,8 @@ This does depend on the ordering so other behaviour is possible.
 
 4_write_write_no_overlap.trf
 ----------------------------
-('P0', 'READ', 32)
-('P1', 'READ', 32)
+('P0', 'READ', 32) // miss
+('P1', 'READ', 32) // miss
 
 ('P0', 'WRITE', 32)
 ('P1', 'NOP', 0)
@@ -119,26 +119,26 @@ P1 has 1 read hit
 
 5_write_write_no_overlap_nops.trf
 ---------------------------------
-('P0', 'READ', 32)
-('P1', 'READ', 32)
+('P0', 'READ', 32)  // miss
+('P1', 'READ', 32)  // miss
 
-('P0', 'WRITE', 32)
-('P1', 'NOP', 0)
+('P0', 'WRITE', 32) // hit - invalidate
+('P1', 'NOP', 0)    // 
 
-('P0', 'NOP', 0)
-('P1', 'NOP', 0)
+('P0', 'NOP', 0)    //
+('P1', 'NOP', 0)    //
 
-('P0', 'NOP', 0)
-('P1', 'WRITE', 32)
+('P0', 'NOP', 0)    //
+('P1', 'WRITE', 32) // miss - invalidate
 
-('P0', 'READ', 512)
-('P1', 'READ', 512)
+('P0', 'READ', 512) // miss
+('P1', 'READ', 512) // miss
 
-('P0', 'READ', 1024)
-('P1', 'READ', 1024)
+('P0', 'READ', 1024) // miss
+('P1', 'READ', 1024) // miss
 
-('P0', 'READ', 32)
-('P1', 'READ', 32)
+('P0', 'READ', 32)  // miss
+('P1', 'READ', 32)  // hit
 
 CPU     Reads   RHit    RMiss   Writes  WHit    WMiss   Hitrate
 0       4       0       4       1       1       0       20.000000
