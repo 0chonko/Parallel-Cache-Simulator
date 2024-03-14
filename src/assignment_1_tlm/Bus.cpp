@@ -9,7 +9,7 @@
 
 
 
-void Bus::request(uint64_t addr, bool isWrite, int id, bool isHit) {
+void Bus::request(uint64_t addr, bool isWrite, int id, bool isHit) { // TODO: add checkRequired
     bus_mutex.lock();
 
     // Create a new request
@@ -50,7 +50,7 @@ void Bus::execute() {
             // Get the next request from the queue
             BusRequest nextRequest = getNextRequest();
             // first check if other caches containt this data address, if yes do state_update notify() and return, otherwise proceed with the rest of the code
-            if (!nextRequest.isHit) {
+            if (!nextRequest.isHit) { 
                 if (num_cpus > 1) {
                     for (int i = 0; i < (int)num_cpus; i++)
                     {
@@ -61,7 +61,10 @@ void Bus::execute() {
                                 bus_mutex.unlock();
                                 wait();
                                 continue;
-                            } // TODO: send only if HIT
+                            } else { // else go to memory
+
+                            }
+                            // TODO: if miss it should still read from memory 
                         }
                     }
                 }
@@ -71,9 +74,15 @@ void Bus::execute() {
                     for (int i = 0; i < (int)num_cpus; i++)
                     {
                         if (i != nextRequest.id) {
-                            caches[i]->read_snoop(nextRequest.addr, nextRequest.isWrite); // TODO: send only if HIT
+                            caches[i]->read_snoop(nextRequest.addr, nextRequest.isWrite); 
                         }
                     }
+                    if (!nextRequest.isWrite) {
+                        wait();
+                        bus_mutex.unlock();
+                        state = IDLE;
+                        continue; // only write hit continues to memory, read hit is there just for snooping
+                    } 
                 }
             }
             // Process the request

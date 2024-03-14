@@ -33,7 +33,7 @@ class Cache : public cpu_cache_if, sc_module {
         void handle_read_hit(uint64_t addr, int setIndex, int tag, int matchedLineIndex);
         void handle_read_miss(uint64_t addr, int setIndex, int tag);
         void handle_probe_write_hit(uint64_t addr, int setIndex, int tag, int i);
-        void handle_probe_read_hit(uint64_t addr, int setIndex, int tag);
+        void handle_probe_read_hit(uint64_t addr, int setIndex, int tag, int i);
         void handle_eviction(uint64_t addr, int setIndex, int tag, int evictionLineIndex);
 
 
