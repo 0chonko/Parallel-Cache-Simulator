@@ -59,20 +59,21 @@ void Cache::dump_cache() {
     using std::endl;
     using std::setw;
 
-    for (size_t i = 0; i < 1; i++) {
+    for (size_t i = 0; i < 8; i++) {
         // print every line in every set in the cache
         for (size_t j = 0; j < 8; j++) {
-            for (size_t k = 0; k < 8; k++) {
-                size_t index = (i * 8 * 8) + (j * 8) + k;
+                size_t index = (i * 8) + j;
                 if (index < CACHE_SIZE) {
                     cout << setw(5) << index << ": " << setw(5) << cache[i].lines[j].state;
                     if (index % 8 == 7) {
                         cout << endl;
                     }
                 } else {
+                    cout << endl;
+                    cout << endl;
                     break;
                 }
-            }
+            
         }
     }
 }
@@ -132,7 +133,7 @@ int Cache::cpu_read(uint64_t addr) {
     }
 
     // READ MISS
-    if (!tagMatch) { //TODO: or if state was invalid?
+    if (!tagMatch) { //TODO: if state was invalid WRITE BACK
         handle_read_miss(addr, setIndex, tag);
     }
     wait(1);
@@ -157,16 +158,23 @@ int Cache::cpu_write(uint64_t addr) {
         if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state != INVALID) {
             cout << "###############################write hit" << endl;
             tagMatch = true;
-            cache[setIndex].lines[i].tag = tag;
             handle_write_hit(addr, setIndex, tag, i);
             break;
         } 
     }
 
     // WRITE MISS
-    if (!tagMatch) { // TODO: or if state was invalid
-        // log(name(), "write miss on address", addr);
-        handle_write_miss(addr, setIndex, tag); // TODO: test write miss  
+    if (!tagMatch) { //TODO: if state was invalid WRITE BACK
+        for (uint64_t i = 0; i < SET_SIZE; i++) {
+            if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state == INVALID) {
+                // TODO: WRITE BACK
+                cache[setIndex].lines[i].tag = tag;
+                handle_write_hit(addr, setIndex, tag, i);
+                break;
+            } else {
+                handle_write_miss(addr, setIndex, tag);
+            }
+        }
     }
     RET_RESPONSE = false;
 
@@ -224,7 +232,7 @@ int Cache::has_cacheline(uint64_t addr) { //TODO should return the line index wh
 }
 
 void Cache::handle_write_hit(uint64_t addr, int setIndex, int tag, int matchedLineIndex) { //TODO: wrong memory access count
-    // bus ->snoop(addr, id, 1);
+    //TODO: needs to invalidate other copies 
     bus->request(addr, true, id, true); // write-through and send probe
     wait_for_response(addr, id); 
     log(name(), "write hit address ", addr);
