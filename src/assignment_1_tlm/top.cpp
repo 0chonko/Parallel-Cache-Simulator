@@ -78,6 +78,11 @@ int sc_main(int argc, char *argv[]) {
         stats_print();
         cout << sc_time_stamp() << endl;
 
+        //dump caches
+        for (int i = 0; i < NUM_CACHES; i++) {
+            caches[i]->dump_cache();
+        }
+
         // Cleanup components
         for (int i = 0; i < NUM_CPUS; i++) {
             delete cpus[i];

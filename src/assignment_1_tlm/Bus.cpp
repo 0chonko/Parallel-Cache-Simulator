@@ -9,7 +9,7 @@
 
 
 
-void Bus::request(uint64_t addr, bool isWrite, int id, bool isHit) { // TODO: add checkRequired
+void Bus::request(uint64_t addr, bool isWrite, int id, bool isHit) { // TODO: MAYBE THE SNOOPING SHOULD BE HERE ALREADY
     bus_mutex.lock();
 
     // Create a new request
@@ -30,7 +30,7 @@ void Bus::request(uint64_t addr, bool isWrite, int id, bool isHit) { // TODO: ad
 void Bus::execute() {
     while (true) {
         wait(); // Wait for the next positive edge of the clock
-        bus_mutex.lock();
+        // bus_mutex.lock();
 
         if (responseQueue.size() > 0) {
             state = OCCUPIED;
@@ -38,7 +38,7 @@ void Bus::execute() {
             BusRequest nextResponse = responseQueue.front();
             ret_memory_response(nextResponse.addr, nextResponse.id);
             state = IDLE;
-            bus_mutex.unlock();
+            // bus_mutex.unlock();
             continue;
 
             // continue;
@@ -57,8 +57,8 @@ void Bus::execute() {
                         if (i != nextRequest.id) {
                             if (caches[i]->has_cacheline(nextRequest.addr) != -1) { // if other caches contain the data
                                 caches[nextRequest.id]->status_update_event.notify();
+                                // bus_mutex.unlock();
                                 state = IDLE;
-                                bus_mutex.unlock();
                                 wait();
                                 continue;
                             } else { // else go to memory
@@ -79,7 +79,7 @@ void Bus::execute() {
                     }
                     if (!nextRequest.isWrite) {
                         wait();
-                        bus_mutex.unlock();
+                        // bus_mutex.unlock();
                         state = IDLE;
                         continue; // only write hit continues to memory, read hit is there just for snooping
                     } 
@@ -89,11 +89,11 @@ void Bus::execute() {
             processRequest(nextRequest);
             // Once the request is processed, the bus is no longer occupied
             state = IDLE;
-            bus_mutex.unlock();
+            // bus_mutex.unlock();
             wait();
             continue;
         }
-        bus_mutex.unlock();
+        // bus_mutex.unlock();
 
     }
 }
@@ -107,9 +107,7 @@ void Bus::processRequest(BusRequest request) {
         memory->write(request.addr, request.id);
     } else {
         // It's a read request, forward it to the memory and possibly save the data
-        log(name(), "Memory read REQUEST at THIS TIME STAMP", request.addr);
         memory->read(request.addr, request.id);
-        log(name(), "Memory read RERURN at THIS TIME STAMP", request.addr);
 
     }
 
@@ -121,8 +119,6 @@ void Bus::processRequest(BusRequest request) {
 }
 
 bool Bus::busy() {
-    cout << "BUSY: " << state << endl;
-
     bool isOccupied = state == OCCUPIED ? true : false;
     return isOccupied;
 }

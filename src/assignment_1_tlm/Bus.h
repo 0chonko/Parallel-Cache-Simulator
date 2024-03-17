@@ -46,11 +46,10 @@ public:
 
     SC_HAS_PROCESS(Bus);
 
-    Bus(sc_module_name name) : sc_module(name) {
+    Bus(sc_module_name name) : sc_module(name) { //TODO: add what else is necessary 
         state = IDLE;
         SC_THREAD(execute);
         sensitive << clock.pos();
-        
     }
 
     ~Bus() {
@@ -74,8 +73,6 @@ private:
     sc_time current_timestamp;
     uint64_t current_addr;
     sc_mutex bus_mutex;
-
-
 };
 
 #endif // BUS_H

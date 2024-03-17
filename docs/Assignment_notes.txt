@@ -27,6 +27,13 @@ Missing deeper analysis of the experiment results.
 - Wrong/no addresses used in messages.
 - Wrong assumptions about the assignment.
 - Implicit modeling of pipeline memory that is overly optimistic.
+
+
+
+
+QUESTIONS
+When a resource is to become shared, only the requesting cache does so?
+
 		
 		
 

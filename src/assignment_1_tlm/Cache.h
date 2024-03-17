@@ -20,7 +20,7 @@ class Cache : public cpu_cache_if, sc_module {
 
         int cpu_read(uint64_t addr);
         int cpu_write(uint64_t addr);
-
+        void dump_cache();
         void update_aging_bits(uint64_t setIndex, uint64_t blockOffset);
         bool containsZero(uint8_t *agingBits);
         int find_oldest(uint64_t setIndex);
