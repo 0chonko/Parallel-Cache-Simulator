@@ -16,8 +16,8 @@
 
 
 static const size_t MEM_SIZE = 2500;
-static const size_t CACHE_SIZE = 16384; // 4kb   
-// static const size_t CACHE_SIZE = 32768;
+// static const size_t CACHE_SIZE = 16384; // 4kb   
+static const size_t CACHE_SIZE = 32768;
 // static const size_t CACHE_SIZE = 65536; // 64kb
 // static const size_t CACHE_SIZE = 131072; // 128kb 
 // static const size_t CACHE_SIZE = 524288; // 512kb
@@ -134,15 +134,14 @@ int Cache::cpu_read(uint64_t addr) {
         bus->request(addr, false, id);
         wait_for_response(addr, id); 
 
-        if (oldest == 0) {
+        if (oldest == 0) 
+        {
             oldest = 1;
-        } else { // TODO: fix line eviction
-        cache[setIndex].lines[oldest].state = 1;
-        log(name(), "cacheline valid again: ", addr); 
-        cache[setIndex].lines[oldest].tag = tag;
-        log(name(), "line evicted: ", addr);
-        update_aging_bits(setIndex, oldest);
         }
+        cache[setIndex].lines[oldest].state = 1;
+        log(name(), "cacheline valid again: ", addr);
+        cache[setIndex].lines[oldest].tag = tag;
+        update_aging_bits(setIndex, oldest);
     }
     wait(1);
     RET_RESPONSE = false;
@@ -190,15 +189,11 @@ int Cache::cpu_write(uint64_t addr) {
         wait_for_response(addr, id); 
         log(name(), "received response back from memory", addr);       
 
-        if (oldest == 0) {
-            oldest = 1;
-        } else { // TODO: fix line eviction
+        if (oldest == 0) oldest = 1;
         cache[setIndex].lines[oldest].state = 1;
         log(name(), "cacheline valid again: ", addr); 
         cache[setIndex].lines[oldest].tag = tag;
-        log(name(), "line evicted: ", addr);
         update_aging_bits(setIndex, oldest);
-        }
     }
     wait(1);
     RET_RESPONSE = false;
@@ -243,5 +238,3 @@ bool Cache::has_cacheline(uint64_t addr) {
 
 
 // wipe the data when the class instance is destroyed as a member function
-
-
