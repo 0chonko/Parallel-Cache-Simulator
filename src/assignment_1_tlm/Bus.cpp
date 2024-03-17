@@ -55,14 +55,17 @@ void Bus::execute() {
                     for (int i = 0; i < (int)num_cpus; i++)
                     {
                         if (i != nextRequest.id) {
-                            if (caches[i]->has_cacheline(nextRequest.addr) != -1) { // if other caches contain the data
+                            if (caches[i]->has_cacheline(nextRequest.addr) != -1) { // if other caches contain the data continue and do not go to memory
                                 caches[nextRequest.id]->status_update_event.notify();
                                 // bus_mutex.unlock();
                                 state = IDLE;
+                                cout << "HELLO THERE NO NEED FOR MEMORY_________________" << endl;
+
                                 wait();
                                 continue;
                             } else { // else go to memory
-
+                                cout << "HELLO THERE_________________" << endl;
+                                wait();
                             }
                             // TODO: if miss it should still read from memory 
                         }
@@ -77,7 +80,7 @@ void Bus::execute() {
                             caches[i]->read_snoop(nextRequest.addr, nextRequest.isWrite); 
                         }
                     }
-                    if (!nextRequest.isWrite) {
+                    if (!nextRequest.isHit) {
                         wait();
                         // bus_mutex.unlock();
                         state = IDLE;
@@ -85,6 +88,9 @@ void Bus::execute() {
                     } 
                 }
             }
+
+            cout << "HELLO THERE_________________AGAIN" << endl;
+
             // Process the request
             processRequest(nextRequest);
             // Once the request is processed, the bus is no longer occupied

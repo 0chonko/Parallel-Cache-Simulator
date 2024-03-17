@@ -195,7 +195,7 @@ bool Cache::wait_for_response(uint64_t addr, int id) { // True if no other cache
     // log(name(), "waiting for response from memory", addr);
 
     wait(memory_write_event | status_update_event);
-
+    // wait();
     if (memory_write_event.triggered()) {
         cout << "memory_write_event has triggered" << endl;
         return true;
@@ -228,14 +228,7 @@ void Cache::handle_write_hit(uint64_t addr, int setIndex, int tag, int matchedLi
     bus->request(addr, true, id, true); // write-through and send probe
     wait_for_response(addr, id); 
     log(name(), "write hit address ", addr);
-
-    //     write hit 
-    //         -> from EXCLUSIVE set to MODIFIED
-    //         -> MODIFIED stays
-    //         -> from SHARED to MODIFIED
-    //         -> from OWNED to MODIFIED
-
-
+    
     if (cache[setIndex].lines[matchedLineIndex].state == EXCLUSIVE) { // done
         cache[setIndex].lines[matchedLineIndex].state = MODIFIED;
         log(name(), "write hit, from EXCLUSIVE to MODIFIED", addr);
@@ -257,6 +250,7 @@ void Cache::handle_write_hit(uint64_t addr, int setIndex, int tag, int matchedLi
     }
     
     stats_writehit(id);
+    update_aging_bits(setIndex, matchedLineIndex);
     // if (cache[setIndex].lines[matchedLineIndex].state != INVALID) { // TODO: meant to double check if in the meanwhile stuff has been invalidated
     //     stats_writehit(id);
     //     update_aging_bits(setIndex, matchedLineIndex);
@@ -277,10 +271,6 @@ void Cache::handle_write_miss(uint64_t addr, int setIndex, int tag) {
 
     int oldest = find_oldest(setIndex);
 
-//     write miss 
-//         -> get from other cache or memory and set to MODIFIED
-//         -> if INVALID write back and to MODIFIED
-
     if (wait_for_response(addr, id)) { // went to memory
         bus->request(addr, true, id, false); // TODO: no need to check anymore, go straight to memory
         wait_for_response(addr, id); // write-back
@@ -293,11 +283,9 @@ void Cache::handle_write_miss(uint64_t addr, int setIndex, int tag) {
         log(name(), "write miss, from other cache to MODIFIED", addr);
     }
 
-
     wait();
 
     update_aging_bits(setIndex, oldest);
-
 
     stats_writemiss(id);
 
@@ -309,8 +297,8 @@ void Cache::handle_read_hit(uint64_t addr, int setIndex, int tag, int matchedLin
     bus->request(addr, false, id, true); // for probe read hit
     wait_for_response(addr, id); 
     stats_readhit(id);
+    update_aging_bits(setIndex, matchedLineIndex);
     wait();
-
 }
 
 void Cache::handle_read_miss(uint64_t addr, int setIndex, int tag) {
@@ -340,11 +328,6 @@ void Cache::handle_read_miss(uint64_t addr, int setIndex, int tag) {
 
     wait();
     
-    // cache[setIndex].lines[oldest].state = VALID; // TODO: is it tho?
-    // // log(name(), "cacheline valid again: ", addr);
-    // cache[setIndex].lines[oldest].tag = tag;
-    // update_aging_bits(setIndex, oldest);
-
     stats_readmiss(id);
 
 }
@@ -383,10 +366,6 @@ void Cache::handle_probe_read_hit(uint64_t addr, int setIndex, int tag, int i) {
 
 void Cache::handle_eviction(uint64_t addr, int setIndex, int tag, int evictionLineIndex) {
 }
-
-// wipe the data when the class instance is destroyed as a member function
-
-
 
 // This cache hits or misses:
 //     read/write miss 
