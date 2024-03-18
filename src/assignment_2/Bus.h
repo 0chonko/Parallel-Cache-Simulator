@@ -23,21 +23,17 @@ public:
         uint64_t addr;
         int id;
         bool isWrite;
-        bool isHit;
     };
     //fifo queue of busRequests
     std::queue<BusRequest> requestQueue;
     std::queue<BusRequest> responseQueue;
-    sc_event bus_busy;
-    sc_event bus_free;
-
 
     // (bus_slave_if)
     int read(uint64_t addr, int id) override;
     int write(uint64_t addr, int id) override;
-    void request(uint64_t addr, bool isWrite, int id, bool isHit) override;
+    void request(uint64_t addr, bool isWrite, int id) override;
     int snoop(uint64_t addr, int src_cache, bool isWrite) override;
-    bool busy() override;
+    bool busy();
     BusRequest getNextRequest(); // Declaration of getNextRequest() method
     void pushRequest(BusRequest request);
     void processRequest(BusRequest request);
@@ -46,7 +42,7 @@ public:
 
     SC_HAS_PROCESS(Bus);
 
-    Bus(sc_module_name name) : sc_module(name) { //TODO: add what else is necessary 
+    Bus(sc_module_name name) : sc_module(name) {
         state = IDLE;
         SC_THREAD(execute);
         sensitive << clock.pos();
@@ -72,7 +68,7 @@ private:
     std::vector<sc_time> avg_acquisition_time;
     sc_time current_timestamp;
     uint64_t current_addr;
-    sc_mutex bus_mutex;
+
 };
 
 #endif // BUS_H

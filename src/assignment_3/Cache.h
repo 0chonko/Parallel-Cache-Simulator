@@ -25,7 +25,8 @@ class Cache : public cpu_cache_if, sc_module {
         bool containsZero(uint8_t *agingBits);
         int find_oldest(uint64_t setIndex);
         int read_snoop(uint64_t addr, bool isWrite);
-        int has_cacheline(uint64_t addr);
+        int get_max_oldest(uint64_t setIndex);
+        int has_cacheline(uint64_t addr, bool isWrite);
         void response_received(uint64_t addr, int id);
         bool wait_for_response(uint64_t addr, int id);
         void handle_write_hit(uint64_t addr, int setIndex, int tag, int matchedLineIndex);
