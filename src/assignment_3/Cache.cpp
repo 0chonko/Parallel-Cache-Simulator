@@ -15,40 +15,8 @@
 // sc_channel<snoop_message> *bus_channel;
 
 
-static const size_t MEM_SIZE = 2500;
-// static const size_t CACHE_SIZE = 16384; // 4kb   
-static const size_t CACHE_SIZE = 32768;
-// static const size_t CACHE_SIZE = 65536; // 64kb
-// static const size_t CACHE_SIZE = 131072; // 128kb 
-// static const size_t CACHE_SIZE = 524288; // 512kb
-static const size_t LINES_COUNT = CACHE_SIZE / 32;
-static const size_t LINE_SIZE = 32; //* sizeof(uint64_t);
-static const size_t SET_SIZE = 8;
-static const size_t SET_COUNT = LINES_COUNT / SET_SIZE;
-bool RET_RESPONSE = false;
-
-enum CacheState {
-    INVALID,
-    EXCLUSIVE, // only one cache can have this line
-    SHARED, // multiple caches can have this line
-    MODIFIED, // only one cache can have this line, and it's different from the memory
-    OWNED // multiple caches can have this line, and it's different from the memory
-};
-
-struct CacheLine {
-    uint64_t tag;
-    uint32_t data[8]; // 32 byte line
-    CacheState state = INVALID; // initialize state to INVALID
-    // bool dirty;
-};
-
-struct CacheSet {
-    CacheLine lines[8]; // 8-way
-    uint8_t agingBits[8]; // 3-bit aging bits for each line, stored as 8-bit integers
-};
 
 // // Initialization should use 'new[]' for arrays
-CacheSet* cache = new CacheSet[SET_COUNT];
 bool debug = true;
 
 
@@ -123,8 +91,7 @@ int Cache::find_oldest(uint64_t setIndex) {
  * Called by CPU.
  */
 int Cache::cpu_read(uint64_t addr) {
-    wait();
-
+    log(name(), "cpu_read on address", addr);
     // Extract the set index and block offset
     uint64_t setIndex = (addr >> BLOCK_OFFSET_BITS) & setIndexMask;
     uint64_t blockOffset = addr & blockOffsetMask;
@@ -135,7 +102,6 @@ int Cache::cpu_read(uint64_t addr) {
 
     // READ HIT
     for (uint64_t i = 0; i < SET_SIZE; i++) {
-        log(name(), " read state", cache[setIndex].lines[i].state);
         if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state != INVALID) {
             tagMatch = true;
             // log(name(), "read hit because incoming tag is ", tag, " and cache tag is ", cache[setIndex].lines[i].tag, " and state is ", cache[setIndex].lines[i].state);
@@ -148,7 +114,6 @@ int Cache::cpu_read(uint64_t addr) {
     if (!tagMatch) {
         handle_read_miss(addr, setIndex, tag);
     }
-    wait();
     RET_RESPONSE = false;
     return 0; // Done, return value 0 signals succes.
 }
@@ -157,7 +122,6 @@ int Cache::cpu_read(uint64_t addr) {
  * Called by CPU.
  */
 int Cache::cpu_write(uint64_t addr) {
-    wait();
 
     // Extract the set index and block offset
     uint64_t setIndex = (addr >> BLOCK_OFFSET_BITS) & setIndexMask;
@@ -168,8 +132,9 @@ int Cache::cpu_write(uint64_t addr) {
 
     // WRITE HIT
     for (uint64_t i = 0; i < SET_SIZE; i++) {
-        log(name(), " write state", cache[setIndex].lines[i].state);
         if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state != INVALID) {
+            cout << "#######################################################write miss" << endl;
+
             tagMatch = true;
             handle_write_hit(addr, setIndex, tag, i);
             break;
@@ -180,29 +145,12 @@ int Cache::cpu_write(uint64_t addr) {
     if (!tagMatch) { //TODO: if state was invalid WRITE BACK
         handle_write_miss(addr, setIndex, tag);
     }
-    RET_RESPONSE = false;
-    cout << "cache ID ############### " << id << endl; 
-    if (id == 0) cache[64].lines[0].state = OWNED;
-
 
     return 0; // indicates succes.
 }
 
 int Cache::read_snoop(uint64_t addr, bool isWrite) {
-    // // log(name(), "snoop request on address", addr);
-    //     int invalidation_line = has_cacheline(addr);
 
-    //     if (invalidation_line != -1) {
-    //         uint64_t setIndex = (addr >> BLOCK_OFFSET_BITS) & setIndexMask;
-    //         uint64_t tag = addr >> (SET_INDEX_BITS + BLOCK_OFFSET_BITS);
-    //         log(name(), "read_snoop found a metching data in another cache", addr);
-    //         if (isWrite) {
-    //             handle_probe_write_hit(addr, setIndex, tag, invalidation_line); // TODO: UPDATES STATE ACCORDINGLY IF THERE'S SOMETHING TO UDPATE
-    //         } else {
-    //             handle_probe_read_hit(addr, setIndex, tag, invalidation_line);
-    //         }
-    // }
-    // return 0;
 }
 
 
@@ -210,7 +158,6 @@ bool Cache::wait_for_response(uint64_t addr, int id) { // True if no other cache
     // log(name(), "waiting for response from memory", addr);
 
     wait(memory_write_event | status_update_event);
-    // wait();
     if (memory_write_event.triggered()) {
         log(name(), "memory_write_event has triggered");
         return true;
@@ -233,7 +180,6 @@ int Cache::has_cacheline(uint64_t addr, bool isWrite) {
     int matchedLine = -1;
     for (uint64_t i = 0; i < SET_SIZE; i++) {
         if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state != INVALID) {
-            log(name(), "FOUND STATE ", cache[setIndex].lines[i].state);
             matchedLine = i;
         }
     }
@@ -253,6 +199,8 @@ int Cache::has_cacheline(uint64_t addr, bool isWrite) {
 void Cache::handle_write_hit(uint64_t addr, int setIndex, int tag, int matchedLineIndex) { //TODO: wrong memory access count
     //TODO: needs to invalidate other copies 
     log(name(), "write hit address ", addr);
+    stats_writehit(id);
+
 
     if (cache[setIndex].lines[matchedLineIndex].state == EXCLUSIVE) { // done
         cache[setIndex].lines[matchedLineIndex].state = MODIFIED;
@@ -283,7 +231,6 @@ void Cache::handle_write_hit(uint64_t addr, int setIndex, int tag, int matchedLi
     bus->request(addr, true, id, false, true); // write-through and send probe
     wait_for_response(addr, id);
 
-    stats_writehit(id);
     update_aging_bits(setIndex, matchedLineIndex);
     wait();
 
@@ -314,6 +261,8 @@ void Cache::handle_write_miss(uint64_t addr, int setIndex, int tag) {
 
     bus->request(addr, false, id, false, false); // pull data
     // TODO: should go to either exclusive or shared before going to modified
+    stats_writemiss(id);
+
 
     if (wait_for_response(addr, id)) { // if true it went to memory
         cache[setIndex].lines[oldest].state = EXCLUSIVE;
@@ -335,26 +284,30 @@ void Cache::handle_write_miss(uint64_t addr, int setIndex, int tag) {
     }
 
     update_aging_bits(setIndex, oldest);
-    stats_writemiss(id);
+    wait();
 
 
 }
 
 void Cache::handle_read_hit(uint64_t addr, int setIndex, int tag, int matchedLineIndex) { // Nothing to do
+    stats_readhit(id);
+
     log(name(), "read hit on address ", addr, " SET ", setIndex);
     bus->request(addr, false, id, false, true); // for probe read hit
     wait_for_response(addr, id);
 
-    stats_readhit(id);
     update_aging_bits(setIndex, matchedLineIndex);
+     wait();
 }
 
 void Cache::handle_read_miss(uint64_t addr, int setIndex, int tag) {
+    stats_readmiss(id);
+
     int oldest = find_oldest(setIndex);
 
     if (get_max_oldest(setIndex) == 7) {
         if (cache[setIndex].lines[oldest].state == MODIFIED || cache[setIndex].lines[oldest].state == OWNED) {
-            bus->request(addr, true, id, true, false); // write back
+            bus->request(addr, false, id, true, false); // write back
             wait_for_response(addr, id);
             log(name(), "read miss, line written back because MODIFIED or OWNED", addr);
         }
@@ -376,7 +329,7 @@ void Cache::handle_read_miss(uint64_t addr, int setIndex, int tag) {
     }
 
     update_aging_bits(setIndex, oldest);
-    stats_readmiss(id);
+    wait();
 
 }
 
@@ -398,6 +351,7 @@ void Cache::handle_probe_write_hit(uint64_t addr, int setIndex, int tag, int i) 
         cache[setIndex].lines[i].state = INVALID;
         log(name(), "probe write hit, from SHARED to INVALID", addr);
     }
+    wait();
 }
 
 void Cache::handle_probe_read_hit(uint64_t addr, int setIndex, int tag, int i) { //TODO: needs to still check if there's a line to update
@@ -418,6 +372,7 @@ void Cache::handle_probe_read_hit(uint64_t addr, int setIndex, int tag, int i) {
         cache[setIndex].lines[i].state = OWNED;
         log(name(), "probe read hit, stays in OWNED", addr);
     }
+    wait();
 }
 
 void Cache::handle_eviction(uint64_t addr, int setIndex, int tag, int evictionLineIndex) {

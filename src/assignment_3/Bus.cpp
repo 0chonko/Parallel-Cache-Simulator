@@ -28,90 +28,13 @@ void Bus::request(uint64_t addr, bool isWrite, int id, bool busWB, bool isHit) {
 
 }
 
-// void Bus::execute() {
-//     while (true) {
-//         wait(); 
-//         // bus_mutex.lock();
 
-//         if (responseQueue.size() > 0) { // priority to memory responses
-//             state = OCCUPIED;
-//             // If there are responses queued
-//             BusRequest nextResponse = responseQueue.front();
-//             ret_memory_response(nextResponse.addr, nextResponse.id);
-//             wait();
-//             state = IDLE;
-//             // bus_mutex.unlock();
-//             continue;
-//         }
-
-//         if (!busy() && !requestQueue.empty()) {
-//             // If the bus is not busy and there are requests queued
-//             state = OCCUPIED;
-//             // Get the next request from the queue
-//             BusRequest nextRequest = getNextRequest();
-//             // first check if other caches containt this data address, if yes do state_update notify() and return, otherwise proceed with the rest of the code
-//             if (!nextRequest.isHit) { 
-//                 if (num_cpus > 1) {
-//                     for (int i = 0; i < (int)num_cpus; i++)
-//                     {
-//                         if (i != nextRequest.id) {
-//                             //TODO: should get from owned if there is one
-//                             if (caches[i]->has_cacheline(nextRequest.addr) != -1) { // if other caches contain the data continue and do not go to memory
-//                                 caches[nextRequest.id]->status_update_event.notify();
-//                                 // bus_mutex.unlock();
-//                                 state = IDLE;
-
-//                                 wait();
-//                                 continue;
-//                             } else { // else go to memory
-//                                 wait();
-//                             }
-//                             // TODO: if miss it should still read from memory 
-//                         }
-//                     }
-//                 }
-//             } else {
-//                 //Let all the caches know that you are processing this request (call read_snoop of each cache instance)
-//                 if (num_cpus > 1) {
-//                     for (int i = 0; i < (int)num_cpus; i++)
-//                     {
-//                         if (i != nextRequest.id) {
-//                             caches[i]->read_snoop(nextRequest.addr, nextRequest.isWrite); 
-//                         }
-//                     }
-//                     if (!nextRequest.isHit) {
-//                         wait();
-//                         // bus_mutex.unlock();
-//                         state = IDLE;
-//                         continue; // only write hit continues to memory, read hit is there just for snooping
-//                     } 
-//                 }
-//             }
-
-
-//             // Process the request
-//             processRequest(nextRequest);
-//             // Once the request is processed, the bus is no longer occupied
-//             state = IDLE;
-//             // bus_mutex.unlock();
-//             wait();
-//             continue;
-//         }
-//         // bus_mutex.unlock();
-
-//     }
-// }
 
 void Bus::execute() {
     while (true) {
         wait();
         // print 3 to cache[setIndex].lines[i].state in caches[0]
 
-        for (int i = 0; i < (int)num_cpus; i++)
-        {
-            caches[i]->dump_cache();
-            cout << "cache dumped " << i << endl;
-        }
         // bus_mutex.lock();
 
         // PROCESS MEMORY REQUEST WITH PRIORITY
@@ -128,10 +51,12 @@ void Bus::execute() {
 
 
         // PROCESS CACHE REQUEST
+        if(num_cpus > 1) {
         if (!busy() && !requestQueue.empty()) {
             
             state = OCCUPIED;
             BusRequest nextRequest = getNextRequest();
+            log(name(), "Processing request", nextRequest.addr, " , ", nextRequest.id, " , ", nextRequest.isWrite, " , ", nextRequest.busWB, " , ", nextRequest.isHit);
 
             // if is write back then just writ to memory
             if (nextRequest.busWB) {
@@ -150,7 +75,6 @@ void Bus::execute() {
                     for (int i = 0; i < (int)num_cpus; i++)
                     {
                         if (i != nextRequest.id) {
-                            log(name(), "Checkin on cache", i);
                             if (caches[i]->has_cacheline(nextRequest.addr, nextRequest.isWrite) != -1) { // if other caches contain the data continue and do not go to memory
                                 // bus_mutex.unlock();
                                 cache_counts++;
@@ -158,15 +82,13 @@ void Bus::execute() {
                         }
                     }
                     if (cache_counts == 0) { // get from memory
-                        log(name(), "### No cache hit, going to memory", nextRequest.addr);
                         processRequest(nextRequest);
                         state = IDLE;
                         wait();
                         continue;
                     }
                     else {
-                        log(name(), "### Cache hit, snooping", nextRequest.addr);
-                        caches[nextRequest.id]->status_update_event.notify();
+                        caches[nextRequest.id]->status_update_event.notify(SC_ZERO_TIME);
                         state = IDLE;
                         wait();
                         continue;
@@ -176,7 +98,10 @@ void Bus::execute() {
             }
         }
 
+    } else if (!requestQueue.empty()){
+        processRequest(getNextRequest());
     }
+}
 }
 
 
@@ -256,7 +181,7 @@ int Bus::write(uint64_t addr, int id) {
     request.id = id;
     request.isWrite = true;
     responseQueue.push(request);
-    caches[id]->memory_write_event.notify();
+    caches[id]->memory_write_event.notify(SC_ZERO_TIME);
     log(name(), "Memory returned to bus", addr);
     return 0;
 }

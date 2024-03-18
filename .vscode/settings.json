@@ -15,6 +15,7 @@
         "typeinfo": "cpp",
         "atomic": "cpp",
         "condition_variable": "cpp",
-        "mutex": "cpp"
+        "mutex": "cpp",
+        "iomanip": "cpp"
     }
 }

@@ -129,7 +129,7 @@ int Bus::write(uint64_t addr, int id) {
     request.id = id;
     request.isWrite = true;
     responseQueue.push(request);
-    caches[id]->memory_write_event.notify();
+    caches[id]->memory_write_event.notify(SC_ZERO_TIME);
     log(name(), "Memory returned to bus", addr);
     return 0;
 }

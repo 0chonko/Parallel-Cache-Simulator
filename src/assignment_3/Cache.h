@@ -39,7 +39,7 @@ public:
 
 
     Cache(sc_module_name name_, int id_) : sc_module(name_), id(id_) {
-            CacheSet* cache = new CacheSet[SET_COUNT];
+        cache = new CacheSet[SET_COUNT];
     }
 
     SC_HAS_PROCESS(Cache);

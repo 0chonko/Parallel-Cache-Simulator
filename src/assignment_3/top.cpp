@@ -82,7 +82,7 @@ int sc_main(int argc, char *argv[]) {
 
         //dump caches
         for (int i = 0; i < NUM_CACHES; i++) {
-            caches[i]->dump_cache();
+            // caches[i]->dump_cache();
         }
 
         // Cleanup components
