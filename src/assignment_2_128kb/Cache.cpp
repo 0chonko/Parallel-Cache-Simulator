@@ -17,9 +17,9 @@
 
 static const size_t MEM_SIZE = 2500;
 // static const size_t CACHE_SIZE = 16384; // 4kb   
-static const size_t CACHE_SIZE = 32768;
+//static const size_t CACHE_SIZE = 32768;
 // static const size_t CACHE_SIZE = 65536; // 64kb
-// static const size_t CACHE_SIZE = 131072; // 128kb 
+static const size_t CACHE_SIZE = 131072; // 128kb 
 // static const size_t CACHE_SIZE = 524288; // 512kb
 static const size_t LINES_COUNT = CACHE_SIZE / 32;
 static const size_t LINE_SIZE = 32; //* sizeof(uint64_t);

@@ -149,7 +149,7 @@ int Cache::cpu_write(uint64_t addr) {
 }
 
 int Cache::read_snoop(uint64_t addr, bool isWrite) {
-    return 0;
+
 }
 
 
@@ -165,7 +165,7 @@ bool Cache::wait_for_response(uint64_t addr, int id) { // True if no other cache
         log(name(), "status_update_event has triggered");
         return false;
     }
-   return false;
+    // log(name(), "received response from memory", addr);
 }
 
 void Cache::response_received(uint64_t addr, int id) {

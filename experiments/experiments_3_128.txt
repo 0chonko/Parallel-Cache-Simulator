@@ -1,0 +1,284 @@
+../tracefiles/matrix_mult_50_50_p1.trf
+Starting simulation
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	1632650	1566377	66273	255150	253790	1360	96.417364
+194583480 ns
+Memory accesses: 1634010 reads, 255150 writes
+Average acquisition time: 100867 ps
+-e 
+
+
+../tracefiles/matrix_mult_50_50_p1.trf
+Starting simulation
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	1632650	1566377	66273	255150	253790	1360	96.417364
+194583480 ns
+Memory accesses: 1634010 reads, 255150 writes
+Average acquisition time: 100867 ps
+-e 
+
+
+../tracefiles/matrix_mult_50_50_p2.trf
+Starting simulation
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	816325	783195	33130	127575	126838	737	96.412014
+1	816325	783261	33064	127575	126950	625	96.430872
+186755939 ns
+Memory accesses: 1537805 reads, 255150 writes
+Average acquisition time: 102011 ps
+-e 
+
+
+../tracefiles/matrix_mult_50_50_p4.trf
+Starting simulation
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	424489	406282	18207	66339	65764	575	96.173405
+1	391836	376148	15688	61236	61072	164	96.501218
+2	424489	406249	18240	66339	65764	575	96.166682
+3	391836	375693	16143	61236	60786	450	96.337668
+185415058 ns
+Memory accesses: 1522814 reads, 255150 writes
+Average acquisition time: 102075 ps
+-e 
+
+
+../tracefiles/matrix_mult_50_50_p8.trf
+Starting simulation
+
+Warning: (W545) sc_stop has already been called
+In file: ../../../src/sysc/kernel/sc_simcontext.cpp:1011
+In process: cpu_4.execute @ 185113692 ns
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	228571	219016	9555	35721	35626	95	96.348735
+1	195918	186449	9469	30618	30136	482	95.607321
+2	228571	219841	8730	35721	35624	97	96.660133
+3	195918	188361	7557	30618	30536	82	96.627909
+4	195918	188403	7515	30618	30534	84	96.645566
+5	195918	187723	8195	30618	30536	82	96.346276
+6	195918	187232	8686	30618	30174	444	95.969735
+7	195918	188440	7478	30618	30610	8	96.695448
+185113692 ns
+Memory accesses: 1516131 reads, 255150 writes
+Average acquisition time: 102429 ps
+-e 
+
+
+../tracefiles/matrix_vector_200_200_p1.trf
+Starting simulation
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	641200	625504	15696	80800	80354	446	97.764266
+74411938 ns
+Memory accesses: 641646 reads, 80800 writes
+Average acquisition time: 100890 ps
+-e 
+
+
+../tracefiles/matrix_vector_200_200_p2.trf
+Starting simulation
+
+Warning: (W545) sc_stop has already been called
+In file: ../../../src/sysc/kernel/sc_simcontext.cpp:1011
+In process: cpu_1.execute @ 71866082 ns
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	320600	312720	7880	40400	40177	223	97.755402
+1	320600	307939	12661	40400	38575	1825	95.987258
+71866082 ns
+Memory accesses: 609239 reads, 80800 writes
+Average acquisition time: 101888 ps
+-e 
+
+
+../tracefiles/matrix_vector_200_200_p4.trf
+Starting simulation
+
+Warning: (W545) sc_stop has already been called
+In file: ../../../src/sysc/kernel/sc_simcontext.cpp:1011
+In process: cpu_3.execute @ 71337599 ns
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	160300	156374	3926	20200	20091	109	97.764543
+1	160300	151529	8771	20200	18488	1712	94.192244
+2	160300	156357	3943	20200	20086	114	97.752355
+3	160300	156357	3943	20200	20086	114	97.752355
+71337599 ns
+Memory accesses: 603299 reads, 80800 writes
+Average acquisition time: 101903 ps
+-e 
+
+
+../tracefiles/matrix_vector_200_200_p8.trf
+Starting simulation
+
+Warning: (W545) sc_stop has already been called
+In file: ../../../src/sysc/kernel/sc_simcontext.cpp:1011
+In process: cpu_7.execute @ 71487834 ns
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	80150	78077	2073	10100	10042	58	97.638781
+1	80150	78127	2023	10100	10042	58	97.694183
+2	80150	78230	1920	10100	10046	54	97.812742
+3	80150	78227	1923	10100	10042	58	97.804986
+4	80150	78188	1962	10100	10042	58	97.761773
+5	80150	73289	6861	10100	8444	1656	90.562881
+6	80150	78227	1923	10100	10042	58	97.804986
+7	80150	78127	2023	10100	10042	58	97.694183
+71487834 ns
+Memory accesses: 603308 reads, 80800 writes
+Average acquisition time: 101904 ps
+-e 
+
+
+../tracefiles/matrix_vector_5000_8_p1.trf
+Starting simulation
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	670000	655922	14078	100000	97256	2744	97.815325
+79592632 ns
+Memory accesses: 672744 reads, 100000 writes
+Average acquisition time: 100881 ps
+-e 
+
+
+../tracefiles/matrix_vector_5000_8_p2.trf
+Starting simulation
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	335000	327938	7062	50000	48606	1394	97.803636
+1	335000	327940	7060	50000	48609	1391	97.804935
+76366806 ns
+Memory accesses: 633153 reads, 100000 writes
+Average acquisition time: 109923 ps
+-e 
+
+
+../tracefiles/matrix_vector_5000_8_p4.trf
+Starting simulation
+
+Warning: (W545) sc_stop has already been called
+In file: ../../../src/sysc/kernel/sc_simcontext.cpp:1011
+In process: cpu_1.execute @ 76403733 ns
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	167500	164094	3406	25000	24371	629	97.903896
+1	167500	163884	3616	25000	24281	719	97.748052
+2	167500	164051	3449	25000	24327	673	97.858701
+3	167500	163884	3616	25000	24281	719	97.748052
+76403733 ns
+Memory accesses: 632742 reads, 100000 writes
+Average acquisition time: 136333 ps
+-e 
+
+
+../tracefiles/matrix_vector_5000_8_p8.trf
+Starting simulation
+
+Warning: (W545) sc_stop has already been called
+In file: ../../../src/sysc/kernel/sc_simcontext.cpp:1011
+In process: cpu_1.execute @ 76546981 ns
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	83750	77070	6680	12500	12183	317	92.730390
+1	83750	82037	1713	12500	12183	317	97.890909
+2	83750	81836	1914	12500	12096	404	97.591688
+3	83750	82043	1707	12500	12183	317	97.897143
+4	83750	82009	1741	12500	12145	355	97.822338
+5	83750	82038	1712	12500	12180	320	97.888831
+6	83750	82037	1713	12500	12183	317	97.890909
+7	83750	81842	1908	12500	12096	404	97.597922
+76546981 ns
+Memory accesses: 632753 reads, 100000 writes
+Average acquisition time: 136333 ps
+-e 
+
+
+../tracefiles/matrix_vector_8_5000_p1.trf
+Starting simulation
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	640048	617383	22665	80032	79420	612	96.767443
+74231276 ns
+Memory accesses: 640660 reads, 80032 writes
+Average acquisition time: 100891 ps
+-e 
+
+
+../tracefiles/matrix_vector_8_5000_p2.trf
+Starting simulation
+
+Warning: (W545) sc_stop has already been called
+In file: ../../../src/sysc/kernel/sc_simcontext.cpp:1011
+In process: cpu_1.execute @ 71457171 ns
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	320024	308690	11334	40016	39709	307	96.766748
+1	320024	308690	11334	40016	39709	307	96.766748
+71457171 ns
+Memory accesses: 606059 reads, 80031 writes
+Average acquisition time: 102022 ps
+-e 
+
+
+../tracefiles/matrix_vector_8_5000_p4.trf
+Starting simulation
+
+Warning: (W545) sc_stop has already been called
+In file: ../../../src/sysc/kernel/sc_simcontext.cpp:1011
+In process: cpu_3.execute @ 68297839 ns
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	160012	154351	5661	20008	19856	152	96.770914
+1	160012	154124	5888	20008	10213	9795	91.288190
+2	160012	154136	5876	20008	10220	9788	91.298745
+3	160012	154335	5677	20008	19852	156	96.759804
+68297839 ns
+Memory accesses: 593946 reads, 60109 writes
+Average acquisition time: 101999 ps
+-e 
+
+
+../tracefiles/matrix_vector_8_5000_p8.trf
+Starting simulation
+
+Warning: (W545) sc_stop has already been called
+In file: ../../../src/sysc/kernel/sc_simcontext.cpp:1011
+In process: cpu_7.execute @ 64786139 ns
+
+Info: /OSCI/SystemC: Simulation stopped by user.
+CPU	Reads	RHit	RMiss	Writes	WHit	WMiss	Hitrate
+0	80006	77077	2929	10004	5093	4911	91.289857
+1	80006	77080	2926	10004	5087	4917	91.286524
+2	80006	72166	7840	10004	5066	4938	85.803800
+3	80006	72166	7840	10004	5066	4938	85.803800
+4	80006	77114	2892	10004	5066	4938	91.300967
+5	80006	77112	2894	10004	5059	4945	91.290968
+6	80006	76983	3023	10004	5183	4821	91.285413
+7	80006	76978	3028	10004	5190	4814	91.287635
+64786139 ns
+Memory accesses: 576601 reads, 40236 writes
+Average acquisition time: 101967 ps
+-e 
+
+
