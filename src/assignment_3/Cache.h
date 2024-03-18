@@ -29,13 +29,13 @@ public:
     int has_cacheline(uint64_t addr, bool isWrite);
     void response_received(uint64_t addr, int id);
     bool wait_for_response(uint64_t addr, int id);
-    void handle_write_hit(uint64_t addr, int setIndex, int tag, int matchedLineIndex);
-    void handle_write_miss(uint64_t addr, int setIndex, int tag);
-    void handle_read_hit(uint64_t addr, int setIndex, int tag, int matchedLineIndex);
-    void handle_read_miss(uint64_t addr, int setIndex, int tag);
-    void handle_probe_write_hit(uint64_t addr, int setIndex, int tag, int i);
-    void handle_probe_read_hit(uint64_t addr, int setIndex, int tag, int i);
-    void handle_eviction(uint64_t addr, int setIndex, int tag, int evictionLineIndex);
+    void handle_write_hit(uint64_t addr, int setIndex, uint64_t tag, int matchedLineIndex);
+    void handle_write_miss(uint64_t addr, int setIndex, uint64_t tag);
+    void handle_read_hit(uint64_t addr, int setIndex, uint64_t tag, int matchedLineIndex);
+    void handle_read_miss(uint64_t addr, int setIndex, uint64_t tag);
+    void handle_probe_write_hit(uint64_t addr, int setIndex, uint64_t tag, int i);
+    void handle_probe_read_hit(uint64_t addr, int setIndex, uint64_t tag, int i);
+    void handle_eviction(uint64_t addr, int setIndex, uint64_t tag, int evictionLineIndex);
 
 
     Cache(sc_module_name name_, int id_) : sc_module(name_), id(id_) {

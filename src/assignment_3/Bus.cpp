@@ -88,7 +88,7 @@ void Bus::execute() {
                         continue;
                     }
                     else {
-                        caches[nextRequest.id]->status_update_event.notify(SC_ZERO_TIME);
+                        caches[nextRequest.id]->status_update_event.notify();
                         state = IDLE;
                         wait();
                         continue;
@@ -181,7 +181,7 @@ int Bus::write(uint64_t addr, int id) {
     request.id = id;
     request.isWrite = true;
     responseQueue.push(request);
-    caches[id]->memory_write_event.notify(SC_ZERO_TIME);
+    caches[id]->memory_write_event.notify();
     log(name(), "Memory returned to bus", addr);
     return 0;
 }

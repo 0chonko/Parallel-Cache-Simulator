@@ -161,6 +161,8 @@ int Cache::cpu_write(uint64_t addr) {
     bool tagMatch = false;
 
     for (uint64_t i = 0; i < SET_SIZE; i++) {
+        cout << (int)cache[setIndex].lines[i].tag << " vs " << tag << endl;
+
         if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state == 1) {
             tagMatch = true;
             cache[setIndex].lines[i].tag = tag;

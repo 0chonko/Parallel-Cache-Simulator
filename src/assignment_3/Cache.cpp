@@ -33,10 +33,10 @@ void Cache::dump_cache() {
             size_t index = (i * 8) + j;
             if (index < CACHE_SIZE) {
                 if (cache[i].lines[j].state != 0) {
-                cout << setw(5) << index << ": " << setw(5) << cache[i].lines[j].state << endl;
-                if (index % 8 == 7) {
-                    cout << endl;
-                }
+                    cout << setw(5) << index << ": " << setw(5) << cache[i].lines[j].state << endl;
+                    if (index % 8 == 7) {
+                        cout << endl;
+                    }
                 }
             }
             else {
@@ -63,7 +63,7 @@ void Cache::update_aging_bits(uint64_t setIndex, uint64_t lineIndex) {
     if (cache[setIndex].agingBits[lineIndex] != 0) {  // if the most recent line is accesses again no updates take place
         for (uint64_t i = 0; i < 8; i++) {
             if (i != lineIndex) {
-                if (cache[setIndex].agingBits[i] < 7 && cache[setIndex].lines[i].state != INVALID) {
+                if (cache[setIndex].agingBits[i] < 7) {
                     cache[setIndex].agingBits[i] += 1;
                 }
             }
@@ -94,7 +94,6 @@ int Cache::cpu_read(uint64_t addr) {
     log(name(), "cpu_read on address", addr);
     // Extract the set index and block offset
     uint64_t setIndex = (addr >> BLOCK_OFFSET_BITS) & setIndexMask;
-    uint64_t blockOffset = addr & blockOffsetMask;
     uint64_t tag = addr >> (SET_INDEX_BITS + BLOCK_OFFSET_BITS);
 
 
@@ -132,12 +131,12 @@ int Cache::cpu_write(uint64_t addr) {
 
     // WRITE HIT
     for (uint64_t i = 0; i < SET_SIZE; i++) {
-        if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state != INVALID) {
-            cout << "#######################################################write miss" << endl;
-
-            tagMatch = true;
-            handle_write_hit(addr, setIndex, tag, i);
-            break;
+        if (cache[setIndex].lines[i].state != INVALID) {
+            if (cache[setIndex].lines[i].tag == tag) {
+                tagMatch = true;
+                handle_write_hit(addr, setIndex, tag, i);
+                break;
+            }
         }
     }
 
@@ -196,7 +195,7 @@ int Cache::has_cacheline(uint64_t addr, bool isWrite) {
     return matchedLine;
 }
 
-void Cache::handle_write_hit(uint64_t addr, int setIndex, int tag, int matchedLineIndex) { //TODO: wrong memory access count
+void Cache::handle_write_hit(uint64_t addr, int setIndex, uint64_t tag, int matchedLineIndex) { //TODO: wrong memory access count
     //TODO: needs to invalidate other copies 
     log(name(), "write hit address ", addr);
     stats_writehit(id);
@@ -247,9 +246,8 @@ void Cache::handle_write_hit(uint64_t addr, int setIndex, int tag, int matchedLi
 
 // it should miss if some other processor invalidates the entry while the bus request is in flight
 // TODO: on invalidation write back to memory
-void Cache::handle_write_miss(uint64_t addr, int setIndex, int tag) {
+void Cache::handle_write_miss(uint64_t addr, int setIndex, uint64_t tag) {
     int oldest = find_oldest(setIndex);
-
     if (get_max_oldest(setIndex) == 7) {
         if (cache[setIndex].lines[oldest].state == MODIFIED || cache[setIndex].lines[oldest].state == OWNED) {
             bus->request(addr, true, id, true, false); // write back
@@ -289,7 +287,7 @@ void Cache::handle_write_miss(uint64_t addr, int setIndex, int tag) {
 
 }
 
-void Cache::handle_read_hit(uint64_t addr, int setIndex, int tag, int matchedLineIndex) { // Nothing to do
+void Cache::handle_read_hit(uint64_t addr, int setIndex, uint64_t tag, int matchedLineIndex) { // Nothing to do
     stats_readhit(id);
 
     log(name(), "read hit on address ", addr, " SET ", setIndex);
@@ -297,15 +295,16 @@ void Cache::handle_read_hit(uint64_t addr, int setIndex, int tag, int matchedLin
     wait_for_response(addr, id);
 
     update_aging_bits(setIndex, matchedLineIndex);
-     wait();
+    wait();
 }
 
-void Cache::handle_read_miss(uint64_t addr, int setIndex, int tag) {
+void Cache::handle_read_miss(uint64_t addr, int setIndex, uint64_t tag) {
     stats_readmiss(id);
 
     int oldest = find_oldest(setIndex);
 
     if (get_max_oldest(setIndex) == 7) {
+        log(name(), "read miss, all lines are full", addr);
         if (cache[setIndex].lines[oldest].state == MODIFIED || cache[setIndex].lines[oldest].state == OWNED) {
             bus->request(addr, false, id, true, false); // write back
             wait_for_response(addr, id);
@@ -333,7 +332,7 @@ void Cache::handle_read_miss(uint64_t addr, int setIndex, int tag) {
 
 }
 
-void Cache::handle_probe_write_hit(uint64_t addr, int setIndex, int tag, int i) { //basically invalidate when another cache write hits 
+void Cache::handle_probe_write_hit(uint64_t addr, int setIndex, uint64_t tag, int i) { //basically invalidate when another cache write hits 
     log(name(), "probe write hit on address ", addr);
     if (cache[setIndex].lines[i].state == EXCLUSIVE) {
         cache[setIndex].lines[i].state = INVALID;
@@ -354,7 +353,7 @@ void Cache::handle_probe_write_hit(uint64_t addr, int setIndex, int tag, int i) 
     wait();
 }
 
-void Cache::handle_probe_read_hit(uint64_t addr, int setIndex, int tag, int i) { //TODO: needs to still check if there's a line to update
+void Cache::handle_probe_read_hit(uint64_t addr, int setIndex, uint64_t tag, int i) { //TODO: needs to still check if there's a line to update
     log(name(), "probe read hit on address ", addr);
     if (cache[setIndex].lines[i].state == EXCLUSIVE) {
         cache[setIndex].lines[i].state = SHARED;
@@ -375,6 +374,6 @@ void Cache::handle_probe_read_hit(uint64_t addr, int setIndex, int tag, int i) {
     wait();
 }
 
-void Cache::handle_eviction(uint64_t addr, int setIndex, int tag, int evictionLineIndex) {
+void Cache::handle_eviction(uint64_t addr, int setIndex, uint64_t tag, int evictionLineIndex) {
 }
 
