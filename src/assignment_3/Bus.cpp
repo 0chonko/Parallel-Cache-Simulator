@@ -9,7 +9,7 @@
 
 
 
-void Bus::request(uint64_t addr, bool isWrite, int id, bool busWB) { // TODO: MAYBE THE SNOOPING SHOULD BE HERE ALREADY
+void Bus::request(uint64_t addr, bool isWrite, int id, bool busWB, bool isHit) { // TODO: MAYBE THE SNOOPING SHOULD BE HERE ALREADY
     bus_mutex.lock();
 
     // Create a new request
@@ -18,6 +18,7 @@ void Bus::request(uint64_t addr, bool isWrite, int id, bool busWB) { // TODO: MA
     request.id = id;
     request.isWrite = isWrite;
     request.busWB = busWB;
+    request.isHit = isHit;
     // Queue the request
     pushRequest(request);
     current_timestamp = sc_time_stamp();
@@ -104,6 +105,13 @@ void Bus::request(uint64_t addr, bool isWrite, int id, bool busWB) { // TODO: MA
 void Bus::execute() {
     while (true) {
         wait();
+        // print 3 to cache[setIndex].lines[i].state in caches[0]
+
+        for (int i = 0; i < (int)num_cpus; i++)
+        {
+            caches[i]->dump_cache();
+            cout << "cache dumped " << i << endl;
+        }
         // bus_mutex.lock();
 
         // PROCESS MEMORY REQUEST WITH PRIORITY
@@ -118,8 +126,10 @@ void Bus::execute() {
             continue;
         }
 
+
         // PROCESS CACHE REQUEST
         if (!busy() && !requestQueue.empty()) {
+            
             state = OCCUPIED;
             BusRequest nextRequest = getNextRequest();
 
@@ -134,6 +144,7 @@ void Bus::execute() {
                 // probe other caches, if found trigger probe_hit in those caches, and return the data and the state of found cache
                 // if found owned set requesting cache to shared, if found shared set requesting cache to shared, exclusive otherwise
                 // iterate through all and then notify
+
                 int cache_counts = 0; // count to see if theres owned, I OMMIT THE MODELING OF OWNED-CHECK AS IT IS TRIVIAL FOR THE SIMULATION PURPOSE
                 if (num_cpus > 1) {
                     for (int i = 0; i < (int)num_cpus; i++)

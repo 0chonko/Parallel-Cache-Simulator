@@ -66,7 +66,9 @@ int sc_main(int argc, char *argv[]) {
         bus->clock(clk);
 
         // for (int i = 0; i < NUM_CACHES; i++) {
-        bus->caches = caches;
+        for (int i = 0; i < NUM_CACHES; i++) {
+            bus->caches.push_back(caches[i]);
+        }
 
 
         cout << "Starting simulation" << endl;

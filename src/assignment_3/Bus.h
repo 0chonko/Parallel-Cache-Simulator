@@ -24,6 +24,7 @@ public:
         int id;
         bool isWrite;
         bool busWB;
+        bool isHit;
     };
     //fifo queue of busRequests
     std::queue<BusRequest> requestQueue;
@@ -34,7 +35,7 @@ public:
     // (bus_slave_if)
     int read(uint64_t addr, int id) override;
     int write(uint64_t addr, int id) override;
-    void request(uint64_t addr, bool isWrite, int id, bool busWB) override;
+    void request(uint64_t addr, bool isWrite, int id, bool busWB, bool isHit) override;
     int snoop(uint64_t addr, int src_cache, bool isWrite) override;
     bool busy() override;
     BusRequest getNextRequest(); // Declaration of getNextRequest() method

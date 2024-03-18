@@ -47,7 +47,7 @@ struct CacheSet {
     uint8_t agingBits[8]; // 3-bit aging bits for each line, stored as 8-bit integers
 };
 
-// Initialization should use 'new[]' for arrays
+// // Initialization should use 'new[]' for arrays
 CacheSet* cache = new CacheSet[SET_COUNT];
 bool debug = true;
 
@@ -59,14 +59,16 @@ void Cache::dump_cache() {
     using std::endl;
     using std::setw;
 
-    for (size_t i = 0; i < 8; i++) {
+    for (size_t i = 0; i < SET_COUNT; i++) {
         // print every line in every set in the cache
         for (size_t j = 0; j < 8; j++) {
             size_t index = (i * 8) + j;
             if (index < CACHE_SIZE) {
-                cout << setw(5) << index << ": " << setw(5) << cache[i].lines[j].state;
+                if (cache[i].lines[j].state != 0) {
+                cout << setw(5) << index << ": " << setw(5) << cache[i].lines[j].state << endl;
                 if (index % 8 == 7) {
                     cout << endl;
+                }
                 }
             }
             else {
@@ -163,6 +165,7 @@ int Cache::cpu_write(uint64_t addr) {
 
     bool tagMatch = false;
 
+
     // WRITE HIT
     for (uint64_t i = 0; i < SET_SIZE; i++) {
         log(name(), " write state", cache[setIndex].lines[i].state);
@@ -178,6 +181,9 @@ int Cache::cpu_write(uint64_t addr) {
         handle_write_miss(addr, setIndex, tag);
     }
     RET_RESPONSE = false;
+    cout << "cache ID ############### " << id << endl; 
+    if (id == 0) cache[64].lines[0].state = OWNED;
+
 
     return 0; // indicates succes.
 }
@@ -274,7 +280,7 @@ void Cache::handle_write_hit(uint64_t addr, int setIndex, int tag, int matchedLi
         log(name(), "write hit, state is INVALID", addr);
     }
 
-    bus->request(addr, true, id, false); // write-through and send probe
+    bus->request(addr, true, id, false, true); // write-through and send probe
     wait_for_response(addr, id);
 
     stats_writehit(id);
@@ -299,20 +305,20 @@ void Cache::handle_write_miss(uint64_t addr, int setIndex, int tag) {
 
     if (get_max_oldest(setIndex) == 7) {
         if (cache[setIndex].lines[oldest].state == MODIFIED || cache[setIndex].lines[oldest].state == OWNED) {
-            bus->request(addr, true, id, true); // write back
+            bus->request(addr, true, id, true, false); // write back
             wait_for_response(addr, id);
             log(name(), "write miss, line written back because MODIFIED or OWNED", addr);
         }
     }
 
 
-    bus->request(addr, false, id, false); // pull data
+    bus->request(addr, false, id, false, false); // pull data
     // TODO: should go to either exclusive or shared before going to modified
 
     if (wait_for_response(addr, id)) { // if true it went to memory
         cache[setIndex].lines[oldest].state = EXCLUSIVE;
         log(name(), "allocate on write pulled data and did not find other copies of requested data. Set to EXCLUSIVE", addr);
-        bus->request(addr, true, id, false); // TODO: have to check if it was invalidated in the meanwhile
+        bus->request(addr, true, id, false, true); // TODO: have to check if it was invalidated in the meanwhile
         wait_for_response(addr, id); // TODO: have to check if it was invalidated in the meanwhile by seeing other copies
         cache[setIndex].lines[oldest].state = MODIFIED;
         cache[setIndex].lines[oldest].tag = tag;
@@ -321,7 +327,7 @@ void Cache::handle_write_miss(uint64_t addr, int setIndex, int tag) {
     else { // other caches have it
         cache[setIndex].lines[oldest].state = SHARED;
         log(name(), "allocate on write pulled data and found other copies of requested data. Set to SHARED", addr);
-        bus->request(addr, true, id, false); // invalidate other copies
+        bus->request(addr, true, id, false, true); // invalidate other copies
         wait_for_response(addr, id);
         cache[setIndex].lines[oldest].state = MODIFIED;
         cache[setIndex].lines[oldest].tag = tag;
@@ -336,7 +342,7 @@ void Cache::handle_write_miss(uint64_t addr, int setIndex, int tag) {
 
 void Cache::handle_read_hit(uint64_t addr, int setIndex, int tag, int matchedLineIndex) { // Nothing to do
     log(name(), "read hit on address ", addr, " SET ", setIndex);
-    bus->request(addr, false, id, false); // for probe read hit
+    bus->request(addr, false, id, false, true); // for probe read hit
     wait_for_response(addr, id);
 
     stats_readhit(id);
@@ -348,14 +354,14 @@ void Cache::handle_read_miss(uint64_t addr, int setIndex, int tag) {
 
     if (get_max_oldest(setIndex) == 7) {
         if (cache[setIndex].lines[oldest].state == MODIFIED || cache[setIndex].lines[oldest].state == OWNED) {
-            bus->request(addr, true, id, true); // write back
+            bus->request(addr, true, id, true, false); // write back
             wait_for_response(addr, id);
             log(name(), "read miss, line written back because MODIFIED or OWNED", addr);
         }
     }
 
 
-    bus->request(addr, false, id, false); // will attempt to read other caches first and if necessary then memory
+    bus->request(addr, false, id, false, false); // will attempt to read other caches first and if necessary then memory
 
     if (wait_for_response(addr, id)) { // went to memory, thus unique
         cache[setIndex].lines[oldest].state = EXCLUSIVE;
