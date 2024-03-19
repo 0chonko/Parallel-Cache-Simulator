@@ -103,7 +103,6 @@ int Cache::cpu_read(uint64_t addr) {
     for (uint64_t i = 0; i < SET_SIZE; i++) {
         if (cache[setIndex].lines[i].tag == tag && cache[setIndex].lines[i].state != INVALID) {
             tagMatch = true;
-            // log(name(), "read hit because incoming tag is ", tag, " and cache tag is ", cache[setIndex].lines[i].tag, " and state is ", cache[setIndex].lines[i].state);
             handle_read_hit(addr, setIndex, tag, i);
             break;
         }
@@ -141,7 +140,7 @@ int Cache::cpu_write(uint64_t addr) {
     }
 
     // WRITE MISS
-    if (!tagMatch) { //TODO: if state was invalid WRITE BACK
+    if (!tagMatch) {
         handle_write_miss(addr, setIndex, tag);
     }
 
@@ -153,9 +152,7 @@ int Cache::read_snoop(uint64_t addr, bool isWrite) {
 }
 
 
-bool Cache::wait_for_response(uint64_t addr, int id) { // True if no other caches had the data, false otherwise
-    // log(name(), "waiting for response from memory", addr);
-
+bool Cache::wait_for_response(uint64_t addr, int id) { 
     wait(memory_write_event | status_update_event);
     if (memory_write_event.triggered()) {
         log(name(), "memory_write_event has triggered");
@@ -195,8 +192,7 @@ int Cache::has_cacheline(uint64_t addr, bool isWrite) {
     return matchedLine;
 }
 
-void Cache::handle_write_hit(uint64_t addr, int setIndex, uint64_t tag, int matchedLineIndex) { //TODO: wrong memory access count
-    //TODO: needs to invalidate other copies 
+void Cache::handle_write_hit(uint64_t addr, int setIndex, uint64_t tag, int matchedLineIndex) { 
     log(name(), "write hit address ", addr);
     stats_writehit(id);
 
@@ -244,11 +240,10 @@ void Cache::handle_write_hit(uint64_t addr, int setIndex, uint64_t tag, int matc
 
 }
 
-// it should miss if some other processor invalidates the entry while the bus request is in flight
-// TODO: on invalidation write back to memory
 void Cache::handle_write_miss(uint64_t addr, int setIndex, uint64_t tag) {
     int oldest = find_oldest(setIndex);
     if (get_max_oldest(setIndex) == 7) {
+        log(name(), "eviction of ", oldest);
         if (cache[setIndex].lines[oldest].state == MODIFIED || cache[setIndex].lines[oldest].state == OWNED) {
             bus->request(addr, true, id, true, false); // write back
             wait_for_response(addr, id);
@@ -258,15 +253,15 @@ void Cache::handle_write_miss(uint64_t addr, int setIndex, uint64_t tag) {
 
 
     bus->request(addr, false, id, false, false); // pull data
-    // TODO: should go to either exclusive or shared before going to modified
+
     stats_writemiss(id);
 
 
     if (wait_for_response(addr, id)) { // if true it went to memory
         cache[setIndex].lines[oldest].state = EXCLUSIVE;
         log(name(), "allocate on write pulled data and did not find other copies of requested data. Set to EXCLUSIVE", addr);
-        bus->request(addr, true, id, false, true); // TODO: have to check if it was invalidated in the meanwhile
-        wait_for_response(addr, id); // TODO: have to check if it was invalidated in the meanwhile by seeing other copies
+        bus->request(addr, true, id, false, true); 
+        wait_for_response(addr, id); 
         cache[setIndex].lines[oldest].state = MODIFIED;
         cache[setIndex].lines[oldest].tag = tag;
         log(name(), "write miss, from memory to MODIFIED", addr);
@@ -304,7 +299,7 @@ void Cache::handle_read_miss(uint64_t addr, int setIndex, uint64_t tag) {
     int oldest = find_oldest(setIndex);
 
     if (get_max_oldest(setIndex) == 7) {
-        log(name(), "read miss, all lines are full", addr);
+        log(name(), "eviction of ", oldest);
         if (cache[setIndex].lines[oldest].state == MODIFIED || cache[setIndex].lines[oldest].state == OWNED) {
             bus->request(addr, false, id, true, false); // write back
             wait_for_response(addr, id);
@@ -321,7 +316,6 @@ void Cache::handle_read_miss(uint64_t addr, int setIndex, uint64_t tag) {
         log(name(), "read miss, from memory to EXCLUSIVE", addr);
     }
     else { // other caches have it
-        // TODO: do i need to send the actual data?
         cache[setIndex].lines[oldest].state = SHARED;
         cache[setIndex].lines[oldest].tag = tag;
         log(name(), "read miss, from other cache to SHARED", addr);
@@ -353,7 +347,7 @@ void Cache::handle_probe_write_hit(uint64_t addr, int setIndex, uint64_t tag, in
     wait();
 }
 
-void Cache::handle_probe_read_hit(uint64_t addr, int setIndex, uint64_t tag, int i) { //TODO: needs to still check if there's a line to update
+void Cache::handle_probe_read_hit(uint64_t addr, int setIndex, uint64_t tag, int i) { 
     log(name(), "probe read hit on address ", addr);
     if (cache[setIndex].lines[i].state == EXCLUSIVE) {
         cache[setIndex].lines[i].state = SHARED;
@@ -363,7 +357,7 @@ void Cache::handle_probe_read_hit(uint64_t addr, int setIndex, uint64_t tag, int
         cache[setIndex].lines[i].state = SHARED;
         log(name(), "probe read hit, stays in SHARED", addr);
     }
-    else if (cache[setIndex].lines[i].state == MODIFIED) { //TODO: Only one processor can hold the data in the owned state
+    else if (cache[setIndex].lines[i].state == MODIFIED) { 
         cache[setIndex].lines[i].state = OWNED;
         log(name(), "probe read hit, from OWNED to SHARED", addr);
     }
@@ -376,4 +370,5 @@ void Cache::handle_probe_read_hit(uint64_t addr, int setIndex, uint64_t tag, int
 
 void Cache::handle_eviction(uint64_t addr, int setIndex, uint64_t tag, int evictionLineIndex) {
 }
+
 
