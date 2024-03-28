@@ -248,6 +248,7 @@ void Cache::handle_write_miss(uint64_t addr, int setIndex, uint64_t tag) {
             bus->request(addr, true, id, true, false); // write back
             wait_for_response(addr, id);
             log(name(), "write miss, line written back because MODIFIED or OWNED", addr);
+            exit(0);
         }
     }
 
@@ -304,6 +305,8 @@ void Cache::handle_read_miss(uint64_t addr, int setIndex, uint64_t tag) {
             bus->request(addr, false, id, true, false); // write back
             wait_for_response(addr, id);
             log(name(), "read miss, line written back because MODIFIED or OWNED", addr);
+            cout << "eviction of " << oldest << endl;
+            exit(0);
         }
     }
 

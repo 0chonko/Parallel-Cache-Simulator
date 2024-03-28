@@ -1,0 +1,14 @@
+FOR (iter)
+    
+    FOR(top row)
+        calculate (halo, col)
+        update
+
+    FOR(row)
+        FOR(col)
+            calculate (row,col)
+            update
+            
+    FOR(bottom row)
+        calculate (halo, col)
+        update

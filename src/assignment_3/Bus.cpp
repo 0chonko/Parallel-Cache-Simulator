@@ -24,8 +24,6 @@ void Bus::request(uint64_t addr, bool isWrite, int id, bool busWB, bool isHit) {
     current_timestamp = sc_time_stamp();
     current_addr = addr;
     bus_mutex.unlock();
-
-
 }
 
 
@@ -65,6 +63,7 @@ void Bus::execute() {
                 wait();
                 continue;
             }
+
             else {
                 // probe other caches, if found trigger probe_hit in those caches, and return the data and the state of found cache
                 // if found owned set requesting cache to shared, if found shared set requesting cache to shared, exclusive otherwise
@@ -82,10 +81,17 @@ void Bus::execute() {
                         }
                     }
                     if (cache_counts == 0) { // get from memory
-                        processRequest(nextRequest);
-                        state = IDLE;
-                        wait();
-                        continue;
+                        if (nextRequest.isHit) {
+                            caches[nextRequest.id]->status_update_event.notify();
+                            state = IDLE;
+                            wait();
+                            continue;
+                        } else {
+                            processRequest(nextRequest);
+                            state = IDLE;
+                            wait();
+                            continue;
+                        }
                     }
                     else {
                         caches[nextRequest.id]->status_update_event.notify();

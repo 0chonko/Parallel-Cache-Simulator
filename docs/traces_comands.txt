@@ -1,0 +1,45 @@
+../scripts/alignment_filter_4bytes.py memory_trace_start_end_row_calc.out > filtered.out
+../scripts/atomic_trace_converter.py filtered.out memory_trace.trf
+../scripts/trace_printer.py memory_trace.trf
+
+
+IMGDIR=../images/custom/areas_3x3.pgm
+IMGDIR=../images/custom/areas_50x100.pgm
+IMGDIR=../images/custom/areas_100x50.pgm
+IMGDIR=../images/custom/areas_100x100.pgm
+IMGDIR=../images/custom/areas_100x150.pgm
+IMGDIR=../images/custom/areas_100x152.pgm
+IMGDIR=../images/custom/areas_100x200.pgm
+IMGDIR=../images/custom/areas_200x100.pgm
+IMGDIR=../images/custom/gradient_50x100.pgm
+IMGDIR=../images/custom/gradient_100x50.pgm
+IMGDIR=../images/custom/gradient_100x100.pgm
+IMGDIR=../images/custom/gradient_100x150.pgm
+IMGDIR=../images/custom/gradient_100x200.pgm
+IMGDIR=../images/custom/gradient_200x100.pgm
+IMGDIR=../images/custom/pat1_5x5.pgm
+IMGDIR=../images/custom/pat1_25x25.pgm
+IMGDIR=../images/custom/pat1_50x50.pgm
+IMGDIR=../images/custom/pat1_50x100.pgm
+IMGDIR=../images/custom/pat1_100x50.pgm
+IMGDIR=../images/custom/pat1_100x100.pgm
+IMGDIR=../images/custom/pat1_100x150.pgm
+IMGDIR=../images/custom/pat1_100x152.pgm
+IMGDIR=../images/custom/pat1_100x200.pgm
+IMGDIR=../images/custom/pat1_200x100.pgm
+IMGDIR=../images/custom/pat2_50x100.pgm
+IMGDIR=../images/custom/pat2_100x50.pgm
+IMGDIR=../images/custom/pat2_100x100.pgm
+IMGDIR=../images/custom/pat2_100x150.pgm
+IMGDIR=../images/custom/pat2_100x200.pgm
+IMGDIR=../images/custom/pat2_200x100.pgm
+IMGDIR=../images/custom/pat3_50x100.pgm
+IMGDIR=../images/custom/pat3_100x50.pgm
+IMGDIR=../images/custom/pat3_100x100.pgm
+IMGDIR=../images/custom/pat3_100x150.pgm
+IMGDIR=../images/custom/pat3_100x200.pgm
+IMGDIR=../images/custom/pat3_100x1000.pgm
+IMGDIR=../images/custom/pat3_100x2000.pgm
+IMGDIR=../images/custom/pat3_200x100.pgm
+IMGDIR=../images/custom/plasma_50x100.pgm
+IMGDIR=../images/custom/plasma_100x50.pgm
