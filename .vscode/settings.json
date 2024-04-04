@@ -8,14 +8,6 @@
         "array": "cpp",
         "string": "cpp",
         "string_view": "cpp",
-        "new": "cpp",
-        "*.tcc": "cpp",
-        "compare": "cpp",
-        "ctime": "cpp",
-        "typeinfo": "cpp",
-        "atomic": "cpp",
-        "condition_variable": "cpp",
-        "mutex": "cpp",
-        "iomanip": "cpp"
+        "compare": "cpp"
     }
 }
