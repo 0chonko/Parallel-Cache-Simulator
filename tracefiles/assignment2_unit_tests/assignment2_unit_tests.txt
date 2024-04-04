@@ -1,0 +1,247 @@
+0_check_if_allocate_on_write.trf
+--------------------------------
+('P0', 'WRITE', 256)
+('P1', 'WRITE', 512)
+
+('P0', 'NOP', 0)
+('P1', 'NOP', 0)
+
+('P0', 'NOP', 0)
+('P1', 'NOP', 0)
+
+('P0', 'READ', 256)
+('P1', 'READ', 512)
+
+CPU     Reads   RHit    RMiss   Writes  WHit    WMiss   Hitrate
+0       1       1       0       1       0       1       50.000000
+1       1       1       0       1       0       1       50.000000
+
+Expect:
+All writes miss
+All reads hit
+
+1_nops_check_if_allocate_on_write.trf
+-------------------------------------
+('P0', 'WRITE', 256)
+('P1', 'WRITE', 512)
+
+('P0', 'NOP', 0)
+('P1', 'NOP', 0)
+
+('P0', 'NOP', 0)
+('P1', 'NOP', 0)
+
+... // 200 nops
+
+('P0', 'READ', 256)
+('P1', 'READ', 512)
+
+Expect: write misses and read hits
+All writes miss
+All reads hit
+
+2_check_write_through.trf
+-------------------------
+('P0', 'READ', 256)
+('P1', 'NOP', 0)
+
+('P0', 'WRITE', 256)
+('P1', 'NOP', 0)
+
+('P0', 'READ', 256)
+('P1', 'NOP', 0)
+
+('P0', 'WRITE', 256)
+('P1', 'NOP', 0)
+
+('P0', 'READ', 256)
+('P1', 'NOP', 0)
+
+('P0', 'WRITE', 256)
+('P1', 'NOP', 0)
+
+('P0', 'READ', 256)
+('P1', 'NOP', 0)
+
+('P0', 'WRITE', 256)
+('P1', 'NOP', 0)
+
+Expect:
+read hits: 3
+write hits: 4
+
+3_read_write_overlap.trf
+------------------------
+('P0', 'READ', 32)
+('P1', 'NOP', 0)
+
+('P0', 'NOP', 0)
+('P1', 'WRITE', 32)
+
+('P0', 'NOP', 0)
+('P1', 'NOP', 0)
+
+('P0', 'READ', 32)
+('P1', 'NOP', 0)
+
+Expect:
+Second P0 read to miss because block was invalidated by P1.
+This does depend on the ordering so other behaviour is possible.
+
+4_write_write_no_overlap.trf
+----------------------------
+('P0', 'READ', 32) // miss
+('P1', 'READ', 32) // miss
+
+('P0', 'WRITE', 32)
+('P1', 'NOP', 0)
+
+('P0', 'READ', 256)
+('P1', 'READ', 256)
+
+('P0', 'NOP', 0)
+('P1', 'NOP', 0)
+
+('P0', 'NOP', 0)
+('P1', 'WRITE', 32)
+
+('P0', 'READ', 512)
+('P1', 'READ', 512)
+
+('P0', 'READ', 32)
+('P1', 'READ', 32)
+
+Expect:
+P0's write should always hit.
+P1's write should always miss.
+P0 has 0 read hits
+P1 has 1 read hit
+
+5_write_write_no_overlap_nops.trf
+---------------------------------
+('P0', 'READ', 32)  // miss
+('P1', 'READ', 32)  // miss
+
+('P0', 'WRITE', 32) // hit - invalidate
+('P1', 'NOP', 0)    // 
+
+('P0', 'NOP', 0)    //
+('P1', 'NOP', 0)    //
+
+('P0', 'NOP', 0)    //
+('P1', 'WRITE', 32) // miss - invalidate
+
+('P0', 'READ', 512) // miss
+('P1', 'READ', 512) // miss
+
+('P0', 'READ', 1024) // miss
+('P1', 'READ', 1024) // miss
+
+('P0', 'READ', 32)  // miss
+('P1', 'READ', 32)  // hit
+
+CPU     Reads   RHit    RMiss   Writes  WHit    WMiss   Hitrate
+0       4       0       4       1       1       0       20.000000
+1       4       1       3       1       0       1       20.000000
+
+Expect: (same as test 4)
+P0's write should always hit.
+P1's write should always miss.
+P0 write invalidates P1 data, so P1 write will read first and then write.
+For the last reads P0 will miss and P1 will hit.
+
+6_two_proc_write_race.trf
+-------------------------
+nr of procs: 2
+P0 WRITE 32
+P1 WRITE 32
+
+P0 END 0
+P1 END 0
+
+Expect:
+One cpu wins the race, the other needs to retry: read again and write.
+
+7_four_proc_write_race.trf
+--------------------------
+('P0', 'WRITE', 32)
+('P1', 'WRITE', 32)
+('P2', 'WRITE', 32)
+('P3', 'WRITE', 32)
+
+Expect:
+One of the 4 cpus will win the bus race to write and invalidate the others.
+assume p0 wins:
+p0: read hit: 0, write hit: 1
+rest: need to restart their write (read, write)
+
+8_four_proc_write_race_then_read.trf
+------------------------------------
+('P0', 'WRITE', 32)
+('P1', 'WRITE', 32)
+('P2', 'WRITE', 32)
+('P3', 'WRITE', 32)
+1000 NOPs
+('P0', 'READ', 32)
+('P1', 'READ', 32)
+('P2', 'READ', 32)
+('P3', 'READ', 32)
+
+Expect:
+Only 1 cache to have a read hit.
+
+9_read_write_invalidate.trf
+---------------------------
+('P0', 'READ', 32)
+('P1', 'NOP', 0)
+
+('P0', 'NOP', 0)
+('P1', 'READ', 512)
+
+('P0', 'NOP', 0)
+('P1', 'NOP', 0)
+
+('P0', 'NOP', 0)
+('P1', 'WRITE', 32)
+
+('P0', 'READ', 768)
+('P1', 'NOP', 0)
+
+('P0', 'READ', 32)
+('P1', 'NOP', 0)
+
+Expect:
+Last P0 read to miss.
+So no cache hits at all.
+
+10_9_reads_4k_apart.trf
+--------------------
+P0 READ 0
+P0 READ 4096
+P0 READ 8192
+P0 READ 12288
+P0 READ 16384
+P0 READ 20480
+P0 READ 24576
+P0 READ 28672
+P0 READ 32768
+P0 END 0
+
+Expect:
+Should evict, no writeback
+
+11_9_writes_4k_apart.trf
+---------------------
+P0 WRITE 0
+P0 WRITE 4096
+P0 WRITE 8192
+P0 WRITE 12288
+P0 WRITE 16384
+P0 WRITE 20480
+P0 WRITE 24576
+P0 WRITE 28672
+P0 WRITE 32768
+P0 END 0
+
+Expect:
+Alloc on write write-through: evict no writeback needed.

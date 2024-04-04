@@ -7,6 +7,7 @@
 # CHANGE THIS TO MATCH YOUR INSTALLATION
 SYSTEMC_PATH    = /Users/germanfak/local/systemc
 
+
 SYSTEMC_INCLUDE = $(SYSTEMC_PATH)/include
 
 # Figure out on what processor/architecture we compile

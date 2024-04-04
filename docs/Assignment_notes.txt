@@ -1,0 +1,39 @@
+Feedback assignment 2:
+
+Test results:
+
+2_check_write_through should have 3 read hits for Cache 0. Does it invalidate itself here?
+Stat issues for testcase 3.
+Delay modeling issues for testcase 4. Should take ~500 cycles.
+Expect only one cache to have the line in valid state after the four write race.
+9 write misses should take 1800 cycles in the VI model.
+A lot of delay and hitrate issues.
+Report:
+
+Component overview is very short. Some more (implementation) details could be useful.
+The snooping method is not the V-I coherency protocol. Data forwarding is something you will do in the MOESI assignment.
+The hitrate trend is unexpected. Test your model with the unit tests/edge cases.
+Speedup results could be interesting.
+Missing deeper analysis of the experiment results.
+
+
+- Cheat by bypassing of the bus.
+- Unneeded locking.
+- Zero time actions.
+- delay issues
+
+- Snooping threads cannot miss messages due to blocking or other reasons.
+- Flags set incorrectly or not cleared.
+- Wrong/no addresses used in messages.
+- Wrong assumptions about the assignment.
+- Implicit modeling of pipeline memory that is overly optimistic.
+
+
+
+
+QUESTIONS
+When a resource is to become shared, only the requesting cache does so?
+
+		
+		
+
